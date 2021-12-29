@@ -1,7 +1,7 @@
 /************************** Flash Memory Driver ***********************************
 
    Filename:    nand_m79a.c
-   Description: Hardware-independent for reading and writing to M79a NAND Flash.
+   Description: Functions for reading and writing to M79a NAND Flash. Uses HAL SPI calls for STM32L0 series.
 
    Version:     0.1
    Author:      Tharun Suresh 
@@ -12,24 +12,27 @@
 
    Ver.		Date			Comments
 
-   0.1		Dec 2021 		In Development 
+   0.1		Jan 2022 		In Development
 
 ********************************************************************************
   
   	The following functions are available in this library:
-		MT_uint8 Init_Driver(void);
-		ReturnType NAND_Reset(void);
 
 
 ********************************************************************************/
 
-#include "nand_m79a.h";
+#include "nand_m79a.h"
 
-/* state of the driver */
-MT_uint8 driver_status = DRIVER_STATUS_NOT_INITIALIZED;
 
-/* global structure with device info */
-struct parameter_page_t device_param_page;
+/********************************************************************************/
+
+// The following functions are declared for internal use only:
+
+NANDReturnType __wait_until_ready(SPI_HandleTypeDef *hspi);
+HAL_StatusTypeDef __write_enable(SPI_HandleTypeDef *hspi);
+HAL_StatusTypeDef __write_disable(SPI_HandleTypeDef *hspi);
+
+/********************************************************************************/
 
 
 /******************************************************************************
@@ -37,100 +40,126 @@ struct parameter_page_t device_param_page;
  *****************************************************************************/
 
 /**
-    This function initialize the driver and it must be called before
-    any other function
+    @brief This function initializes the NAND. Steps: sending reset command and checking for correct device ID.
+ 	@note This function must be called first when powered on.
 
-    @return Return code
-    @retval NAND_DRIVER_STATUS_INITIALIZED
-    @retval DRIVER_STATUS_NOT_INITIALIZED
+    @return NANDReturnType
+    @retval Ret_ResetFailed
+    @retval Ret_WrongID
+    @retval Ret_Success
  */
-MT_uint8 Init_Driver(void) {
-	// bus_t onfi_signature[ONFI_SIGNATURE_LENGHT];
+NANDReturnType NAND_Init(SPI_HandleTypeDef *hspi) {
 
-	/* check if the driver is previously initialized */
-	if(DRIVER_STATUS_INITIALIZED == driver_status)
-		return DRIVER_STATUS_INITIALIZED;
+	NAND_ID dev_ID;
+	NANDReturnType resetStatus;
 
-	SPI_Init();
+	/* Reset NAND flash during initialization
+	 * May not be necessary though (page 50) */
 
-	/* Resetting the NAND Flash at startup is usually mandatory but the 
-	default Micron boot up setting is the alternative SPI NAND Boot up sequence:
-	The device automatically kicks off initialization and reset (see page 50)
- */
-	NAND_Reset();
+	HAL_Delay(T_POR);  // wait for T_POR = 1.25ms after power on
+	__wait_until_ready(hspi); // wait until status register indicates no operations in progress
+	resetStatus = NAND_Reset(hspi);
+	__wait_until_ready(hspi);
 
-	// update driver status
-
-	// /* read if this device is ONFI complaint */
-	// NAND_Read_ID_ONFI(onfi_signature);
-
-	// /* verify ONFI signature in the first field of parameter page */
-	// if(strcmp((const char *)onfi_signature, "ONFI") &&
-	// 	(NAND_BAD_PARAMETER_PAGE != NAND_Read_Param_Page(&device_info)))
-	// driver_status = DRIVER_STATUS_INITIALIZED;
-
-	driver_status = DRIVER_STATUS_INITIALIZED;
-
-	return driver_status;
+	if (resetStatus != Ret_Success) {
+		return Ret_ResetFailed;
+	} else {
+		/* check if device ID is same as expected */
+		NAND_Read_ID(hspi, &dev_ID);
+		if (dev_ID.manufacturer_ID != NAND_ID_MANUFACTURER || dev_ID.device_ID != NAND_ID_DEVICE) {
+			return Ret_WrongID;
+		} else {
+			return Ret_Success;
+		}
+	}
 }
 
 /**
- 	Sends command to reset the NAND Flash chip. Returns success when Flash is ready for further instructions.
+ 	@brief Sends command to reset the NAND Flash chip.
+	@note Transaction length: 1 byte; Returns success when Flash is ready for further instructions.
 
-	Transaction length: 1 byte
-	Wait time: Unlimited 
-
-    @return Return code
-    @retval Op_Success
+    @return NANDReturnType
+    @retval Ret_ResetFailed
+    @retval Ret_Success
 */
-ReturnType NAND_Reset(void) { 
+NANDReturnType NAND_Reset(SPI_HandleTypeDef *hspi) {
 
-	SPI_Open();						// CS# low
-   	SPI_SendCmd(SPI_NAND_RESET); 	// send command for reset 
-   	SPI_Wait(T_POR);				// wait for 1.25 ms after reset 
-	__wait_for_ready();				// wait until OIP bit sets again (Flash is ready for further instructions)
-	SPI_Close();					// CS# high
+	HAL_StatusTypeDef SPI_Status;
+	uint8_t command = SPI_NAND_RESET;
 
-	return Op_Success;
+	SPI_Status = HAL_SPI_Transmit(hspi, &command, sizeof(command), NAND_SPI_TIMEOUT);
+	HAL_Delay(T_POR);	// wait for T_POR = 1.25 ms after reset
+
+	if (SPI_Status != HAL_OK) {
+		return Ret_ResetFailed;
+	} else {
+		// wait until OIP bit sets again (Flash is ready for further instructions)
+		return __wait_until_ready(hspi);
+	}
 }
 
 
 /**
-    Sends command to read ID of Flash chip. Returns the manufacturer and device ID.
-	
-	Transaction length: 4 bytes (2 each way)
+    @brief Sends command to read manufacturer and device ID of NAND flash chip
+	@note Transaction length: 4 bytes (2 each way)
 
-	@return Struct: ID 
-    @retval device_ID
+    @return NANDReturnType
+    @retval Ret_ResetFailed
+    @retval Ret_Success
 
  */
 
-ID NAND_Read_ID(ID device_ID) {
+NANDReturnType NAND_Read_ID(SPI_HandleTypeDef *hspi, NAND_ID *nand_ID) {
 
-	SPI_Open();						// CS# low
-   	SPI_SendCmd(SPI_NAND_READ_ID); 	// send command for ID 
-	SPI_SendData(DUMMY_BYTE);	
-	device_ID.manufacturer_ID = SPI_ReadData();
-	device_ID.device_ID	= SPI_ReadData();
-	SPI_Close();					// CS# high
+	uint8_t data_tx[4]; // initialized to zero
+	uint8_t data_rx[4];
 
-    return device_ID;
+	data_tx[0] = SPI_NAND_READ_ID; // first byte is the command, rest are zeroes
+
+	HAL_SPI_TransmitReceive(hspi, data_tx, data_rx, sizeof(data_rx), NAND_SPI_TIMEOUT);
+
+	nand_ID -> manufacturer_ID = data_tx[2]; // second last byte from transmission
+	nand_ID -> device_ID = data_rx[3]; // last byte
+
+    return Ret_Success;
 }
 
 
+/**
+ 	@brief Sends command to read the entire status register
+	@note Transaction length: 3 bytes (2 to transmit, 1 to receive)
+
+    @return uint8_t
+    @retval Status register contents
+*/
+uint8_t NAND_Read_Status_Reg(SPI_HandleTypeDef *hspi) {
+
+	uint8_t command[3];
+	uint8_t data_rx[3];
+
+	command[0] = SPI_NAND_GET_FEATURES;
+	command[1] = SPI_NAND_STATUS_REG_ADDR;
+
+	HAL_SPI_TransmitReceive(hspi, command, data_rx, sizeof(data_rx), NAND_SPI_TIMEOUT);
+
+	return data_rx[3];
+}
 
 
+/**
+ 	@brief Sends command to read status register bit 1 (OIP).
+	@note Transaction length: 3 bytes (2 to transmit, 1 to receive)
 
-
-
-
-
-
-
-
-
-
-
+    @return NANDReturnType
+    @retval
+*/
+NANDReturnType NAND_Check_Busy(SPI_HandleTypeDef *hspi) {
+	if ((NAND_Read_Status_Reg(hspi) & SPI_NAND_OIP) == SPI_NAND_OIP) {
+		return Ret_Success;
+	} else {
+		return Ret_NANDBusy;
+	}
+}
 
 
 /******************************************************************************
@@ -138,32 +167,51 @@ ID NAND_Read_ID(ID device_ID) {
  *****************************************************************************/
 
 /**
-    This function waits until OIP bit in the Status Register sets again, indicating 
+    @brief
+    @note Waits until OIP bit in the Status Register sets again, indicating
 	that the NAND Flash is ready for further instructions. 
 
-    @return Return code
-    @retval Flash_Success
+	This is written assuming that the device keeps reading & outputting the status register
+	until another command is issued. This is true for other models but this datasheet doesn't
+	specify this explicitly.
 
+	TODO: check this on hardware with an oscilloscope.
+
+    @return NANDReturnType
+    @retval Ret_Success
+ */
+NANDReturnType __wait_until_ready(SPI_HandleTypeDef *hspi) {
+	uint8_t data_rx;
+
+	if (NAND_Check_Busy(hspi) == Ret_NANDBusy) {
+		while ((data_rx & SPI_NAND_OIP) != SPI_NAND_OIP) {
+			HAL_SPI_Receive(hspi, &data_rx, sizeof(data_rx), NAND_SPI_TIMEOUT);
+			HAL_Delay(1);
+		}
+	}
+	return Ret_Success;
+}
+
+HAL_StatusTypeDef __write_enable(SPI_HandleTypeDef *hspi) {
+	uint8_t command = SPI_NAND_WRITE_ENABLE;
+	return HAL_SPI_Transmit(hspi, &command, sizeof(command), NAND_SPI_TIMEOUT);
+}
+
+HAL_StatusTypeDef __write_disable(SPI_HandleTypeDef *hspi) {
+	uint8_t command = SPI_NAND_WRITE_DISABLE;
+	return HAL_SPI_Transmit(hspi, &command, sizeof(command), NAND_SPI_TIMEOUT);
+}
+
+
+/*
+ * TODO:
+ * The first spare area location in each bad block contains the bad-block mark (0x00).
+ * System software should initially check the first spare area location (byte 2048) for non-FFh data on
+ * the first page of each block prior to performing any program or erase operations on the
+ * NAND Flash device.
+ *
  */
 
-// TODO: Use NAND_Read_Status instead. if that is 
-// TODO: if it takes too long, return failure 
-
-ReturnType __wait_for_ready() {
-	SPI_SendCmd(SPI_NAND_GET_FEATURES);     // send the command
-	SPI_SendAddr(SPI_NAND_STATUS_REG_ADDR);	// send register address
-
-	// see page 17. as long as you keep reading, you get the status register contents 
-	// keep reading until OIP bit toggles then return success
-	
-	// currently it just checks once and returns. 
-	if (SPI_NAND_OIP == (SPI_NAND_OIP & SPI_ReadData())) { 
-		return Op_Success;
-	}
-	else {
-		return Op_ResetFailed;
-	}
-	
 
 
 

@@ -1,7 +1,7 @@
 /************************** Flash Memory Driver ***********************************
 
    Filename:    nand_m79a.h
-   Description: Hardware-independent functions for reading and writing to M79a NAND Flash.
+   Description: Functions for reading and writing to M79a NAND Flash. Uses HAL SPI calls for STM32L0 series.
 
    Version:     0.1
    Author:      Tharun Suresh 
@@ -12,7 +12,7 @@
 
    Ver.		Date			Comments
 
-   0.1		Dec 2021 		In Development 
+   0.1		Jan 2022 		In Development
 
 ********************************************************************************
   
@@ -22,65 +22,62 @@
 
 ********************************************************************************/
 
-#include "nand_spi.h";
-
-/* Basic Data-types */
-typedef unsigned char        MT_uint8;
-typedef signed char          MT_sint8;
-typedef unsigned short       MT_uint16;
-typedef signed short         MT_sint16;
-typedef unsigned int         MT_uint32;
-typedef signed int           MT_sint32;
-
-typedef MT_uint32 uAddrType;
-
-// TODO: check this 
-// #define SE_TIMEOUT 3 	/* timeout in seconds suggested for Sector Erase Operation */
-#define TRUE 1
-#define FALSE 0
-
-/* Driver status constants */
-#define DRIVER_STATUS_INITIALIZED		0 	/* normal driver state */
-#define DRIVER_STATUS_NOT_INITIALIZED	1 	/* driver is not initialized */
-
-/* Functions Return Codes */
-typedef enum {
-	Op_Success,
-	Op_ResetFailed,
-	// Op_AddressInvalid,
-	// Op_RegAddressInvalid,
-	// Op_MemoryOverflow,
-	// Op_BlockEraseFailed,
-	// Op_PageNrInvalid,
-	// Op_SubSectorNrInvalid,
-	// Op_SectorNrInvalid,
-	// Op_FunctionNotSupported,
-	// Op_NoInformationAvailable,
-	// Op_OperationOngoing,
-	// Op_OperationTimeOut,
-	// Op_ProgramFailed,
-	// Op_SectorProtected,
-	// Op_SectorUnprotected,
-	// Op_SectorProtectFailed,
-	// Op_SectorUnprotectFailed,
-	// Op_SectorLocked,
-	// Op_SectorUnlocked,
-	// Op_SectorLockDownFailed,
-	Op_WrongType
-} ReturnType;
+#include "stm32l0xx_hal.h"
 
 // TODO: update this
 // #define FlashAddressMask 0x083Ful
 // #define FlashPageSize 0x0840ul
 
+// TODO: check this 
+// #define SE_TIMEOUT 3 	/* timeout in seconds suggested for Sector Erase Operation */
+
+#define DUMMY_BYTE	0
+#define NAND_SPI_TIMEOUT 5000
+
+/* Functions Return Codes */
+typedef enum {
+	Ret_Success,
+	Ret_ResetFailed,
+	Ret_WrongID,
+	Ret_NANDBusy,
+	// Ret_AddressInvalid,
+	// Ret_RegAddressInvalid,
+	// Ret_MemoryOverflow,
+	// Ret_BlockEraseFailed,
+	// Ret_PageNrInvalid,
+	// Ret_SubSectorNrInvalid,
+	// Ret_SectorNrInvalid,
+	// Ret_FunctionNotSupported,
+	// Ret_NoInformationAvailable,
+	// Ret_OperationOngoing,
+	// Ret_OperationTimeOut,
+	// Ret_ProgramFailed,
+	// Ret_SectorProtected,
+	// Ret_SectorUnprotected,
+	// Ret_SectorProtectFailed,
+	// Ret_SectorUnprotectFailed,
+	// Ret_SectorLocked,
+	// Ret_SectorUnlocked,
+	// Ret_SectorLockDownFailed,
+	Ret_WrongType
+} NANDReturnType;
+
 /* List of supported devices */
 #define MT29F2G01ABAGD
 
 #ifdef MT29F2G01ABAGD
+
+	/* device ID */
+	typedef struct {
+		uint8_t manufacturer_ID;
+		uint8_t device_ID;
+	} NAND_ID;
+	#define NAND_ID_MANUFACTURER 0x2C
+	#define NAND_ID_DEVICE 0x24
+
 	/* device details, see Memory Mapping in the Datasheet */
-	typedef MT_uint8 bus_t;							/* Flash data type */
 	#define FLASH_WIDTH				8				/* Flash data width */
-	#define FLASH_SIZE				0x11000000		/* Flash size in bytes */
+	#define FLASH_SIZE_BYTES		0x11000000		/* Flash size in bytes */
   	#define NUM_BLOCKS				2048			/* Total number of blocks in the device*/
 	#define NUM_PAGE_BLOCK			64				/* Number of pages per block*/
 	#define PAGE_SIZE				2176			/* Page size in bytes */
@@ -113,7 +110,7 @@ typedef enum {
 		SPI_NAND_PROGRAM_EXEC	 			= 0x10,
 		SPI_NAND_PROGRAM_LOAD	 			= 0x02,
 		SPI_NAND_PROGRAM_LOAD_RANDOM	 	= 0x84
-	} CommandCode;
+	} CommandCodes;
 
 	/* Using Get Feature command, we can access one of four registers */
 	/* Register type (see Datasheet page 37) */
@@ -192,17 +189,12 @@ typedef enum {
 		ReadFromCacheQuadIO,
 	} PageReadMode;
 
-	/* Time constants, in µs (see datasheet pages ) */
-	#define T_POR	 			1250    /* Power on Reset Time (device initialization) from VCC Min */
-	#define TIME_MAX_ERS 		10000	
-	#define TIME_MAX_PGM		900000
+	/* Time constants, in ms (see datasheet pages )
+	 * These are rounded up to the nearest ms for use with HAL_Delay() */
+	#define T_POR	 			2    /* Power-On/Reset Time : Minimum time after power on or reset: 1.25 ms */
+	#define TIME_MAX_ERS 		0
+	#define TIME_MAX_PGM		0
 
-	#define DUMMY_BYTE			0
-
-	typedef struct {
-		MT_uint8 manufacturer_ID;
-		MT_uint8 device_ID;
-	} ID;
 
 #endif
 
@@ -211,37 +203,34 @@ typedef enum {
  *									List of APIs
  *****************************************************************************/
 
-MT_uint8 Init_Driver(void);
-
-/* reset operations */
-ReturnType NAND_Reset(void);
+NANDReturnType NAND_Init(SPI_HandleTypeDef *hspi);
+NANDReturnType NAND_Reset(SPI_HandleTypeDef *hspi);
+NANDReturnType NAND_Check_Busy(SPI_HandleTypeDef *hspi);
 
 /* identification operations */
-ID NAND_Read_ID(ID device_ID);
-// MT_uint8 NAND_Read_ID_ONFI(Op_width *buf);
-// MT_uint8 NAND_Read_Param_Page(param_page_t *ppage);
+NANDReturnType NAND_Read_ID(SPI_HandleTypeDef *hspi, NAND_ID *nand_ID);
+// NANDReturnType NAND_Read_Param_Page(SPI_HandleTypeDef *hspi, param_page_t *ppage);
 
 /* feature operations */
-// MT_uint8 NAND_Get_Feature(Op_width feature_address, Op_width *subfeature);
-// MT_uint8 NAND_Set_Feature(Op_width feature_address, Op_width subfeature);
-// Op_width NAND_Read_Status();
-// Op_width NAND_Read_Status_Enhanced(nand_addr_t addr);
+// NANDReturnType NAND_Get_Feature(SPI_HandleTypeDef *hspi, uint8_t feature_address, uint8_t subfeature);
+// NANDReturnType NAND_Set_Feature(SPI_HandleTypeDef *hspi, uint8_t feature_address, uint8_t subfeature);
+uint8_t NAND_Read_Status_Reg(SPI_HandleTypeDef *hspi);
 
-// /* read operations */
-// MT_uint8 NAND_Page_Read(nand_addr_t addr, Op_width *buffer, MT_uint32 lenght);
-// MT_uint8 NAND_Spare_Read(nand_addr_t addr, Op_width *buffer, MT_uint32 lenght);
+ /* read operations */
+// NANDReturnType NAND_Page_Read(nand_addr_t addr, width *buffer, uint32 length);
+// NANDReturnType NAND_Spare_Read(nand_addr_t addr, width *buffer, uint32 length);
 
-// /* erase operations */
-// MT_uint8 NAND_Block_Erase(nand_addr_t addr);
+ /* erase operations */
+// NANDReturnType NAND_Block_Erase(nand_addr_t addr);
 
-// /* program operations */
-// MT_uint8 NAND_Page_Program(nand_addr_t addr, Op_width *buffer, MT_uint32 lenght);
-// MT_uint8 NAND_Spare_Program(nand_addr_t addr, Op_width *buffer, MT_uint32 lenght);
+ /* program operations */
+// NANDReturnType NAND_Page_Program(nand_addr_t addr, width *buffer, uint32 length);
+// NANDReturnType NAND_Spare_Program(nand_addr_t addr, width *buffer, uint32 length);
 
-// /* internal data move operations */
-// MT_uint8 NAND_Copy_Back(nand_addr_t src_addr, nand_addr_t dest_addr);
+ /* internal data move operations */
+// NANDReturnType NAND_Copy_Back(nand_addr_t src_addr, nand_addr_t dest_addr);
 
-// /* block lock operations */
-// MT_uint8 NAND_Lock(void);
-// MT_uint8 NAND_Unlock(nand_addr_t start_block, nand_addr_t end_block);
-// MT_uint8 NAND_Read_Lock_Status(nand_addr_t block_addr);
+ /* block lock operations */
+// NANDReturnType NAND_Lock(void);
+// NANDReturnType NAND_Unlock(nand_addr_t start_block, nand_addr_t end_block);
+// NANDReturnType NAND_Read_Lock_Status(nand_addr_t block_addr);
