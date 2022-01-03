@@ -1,7 +1,7 @@
 /************************** Flash Memory Driver ***********************************
 
    Filename:    nand_m79a.h
-   Description: Functions for reading and writing to M79a NAND Flash. Uses HAL SPI calls for STM32L0 series.
+   Description: Low-level functions for reading and writing to M79a NAND Flash via SPI.
 
    Version:     0.1
    Author:      Tharun Suresh 
@@ -22,17 +22,7 @@
 
 ********************************************************************************/
 
-#include "stm32l0xx_hal.h"
-
-// TODO: update this
-// #define FlashAddressMask 0x083Ful
-// #define FlashPageSize 0x0840ul
-
-// TODO: check this 
-// #define SE_TIMEOUT 3 	/* timeout in seconds suggested for Sector Erase Operation */
-
-#define DUMMY_BYTE	0
-#define NAND_SPI_TIMEOUT 5000
+#include "nand_spi.h"
 
 /* Functions Return Codes */
 typedef enum {
@@ -72,8 +62,8 @@ typedef enum {
 		uint8_t manufacturer_ID;
 		uint8_t device_ID;
 	} NAND_ID;
-	#define NAND_ID_MANUFACTURER 0x2C
-	#define NAND_ID_DEVICE 0x24
+	#define NAND_ID_MANUFACTURER 	0x2C
+	#define NAND_ID_DEVICE 			0x24
 
 	/* device details, see Memory Mapping in the Datasheet */
 	#define FLASH_WIDTH				8				/* Flash data width */
@@ -84,13 +74,15 @@ typedef enum {
 	#define PAGE_DATA_SIZE			2048			/* Page data size in bytes */
 	#define PAGE_SPARE_SIZE			128				/* Page spare size in bytes*/
 
-    // 1 page   = (2048 data + 128 bytes spare)     =   2176 bytes / page 
-    // 1 block  = 2176 bytes/page * 64 pages/block  = 139264 bytes / block = 136 KB/block
-    // device   = 139264 bytes/block * 2048 blocks  = 285,212,672 bytes or 2176 Mbits
+	/*
+		1 page   => (2048 data + 128 bytes spare)     =   2176 bytes / page 
+		1 block  => 2176 bytes/page * 64 pages/block  = 139264 bytes / block = 136 KB/block
+		device   => 139264 bytes/block * 2048 blocks  = 285,212,672 bytes or 2176 Mbits
+	*/
 
 	/* utility macros */
     // TODO: check this. are these still accurate?
-	// #define ADDRESS_2_BLOCK(Address)	((MT_uint16) (Address >> 18))
+	// #define ADDRESS_2_BLOCK(Address)		((MT_uint16) (Address >> 18))
 	// #define ADDRESS_2_PAGE(Address)		((MT_uint8)  ((Address >> 12) & 0x3F))
 	// #define ADDRESS_2_COL(Address)		((MT_uint16) (Address & 0x0FFF))
 
@@ -125,14 +117,14 @@ typedef enum {
 
 	/* Status register description:
 	*
-	* SR7 - CRBSY Cache Read Busy
+	* SR7 - CRBSY Cache Read Busy = '1' when READ PAGE CACHE RANDOM operation is ongoing
 	* SR6 - ECC status (*)
 	* SR5 - ECC status (*)
 	* SR4 - ECC status (*)
 	* SR3 - P_Fail Program fail
 	* SR2 - E_Fail Erase fail
 	* SR1 - WEL Write enable
-	* SR0 - OIP Operation in progress
+	* SR0 - OIP Operation in progress. When 0, device is ready.
 	*
 	* (*) ECC status bits (SR6,SR5,SR4) should be interpreted as follows:
 	*      000 = no errors;
@@ -149,12 +141,14 @@ typedef enum {
 	*/
 
 	/* Values for status register (see Datasheet page 43) */
-	enum {
-		SPI_NAND_PF   = 0x08, /* program fail */
-		SPI_NAND_EF   = 0x04, /* erase fail */
-		SPI_NAND_WE   = 0x02, /* write enable */
-		SPI_NAND_OIP  = 0x01, /* operation in progress */
-	};
+	typedef enum {
+		SPI_NAND_CRBSY = (1 << 7), /* Cache Read Busy */
+		SPI_NAND_ECC   = (1 << 6) | (1 << 5) | (1 << 4),  /* ECC bits */
+		SPI_NAND_PF    = (1 << 3), /* program fail */
+		SPI_NAND_EF    = (1 << 2), /* erase fail */
+		SPI_NAND_WEL   = (1 << 1), /* write enable latch */
+		SPI_NAND_OIP   = (1 << 0), /* operation in progress */
+	} StatusRegBits;
 
 	/* Block Lock bits (see Datasheet page 37)
 	*
@@ -169,16 +163,15 @@ typedef enum {
 	*
 	* (*) If BRWD (block register write disable) is enabled and WP# is LOW and WP#/HOLD# is LOW (default)
 	*     then the block lock registers [7:2] cannot be changed
-	* 
-	* See datasheet page 38 for what the BPx bits mean
+	*  
+	* See datasheet page 38 for explanation on BPx bits
 	*/
-	enum {
-		SPI_NAND_BRWD 	= 0x80, // block register write disable
-		SPI_NAND_BP3    = 0x40,
-		SPI_NAND_BP2 	= 0x20,
-		SPI_NAND_BP1 	= 0x10,
-		SPI_NAND_BP0 	= 0x08,
-	};
+	typedef enum {
+		SPI_NAND_BRWD 	= (1 << 7), // block register write disable
+		SPI_NAND_BP     = (1 << 6) | (1 << 5) | (1 << 4) | (1 << 3), 
+		SPI_NAND_TB     = (1 << 2),
+		SPI_NAND_WP_D   = (1 << 1), /* Write protect#/hold# disable */
+	} BlockLockRegBits;
 
 	/* Page read mode (see Datasheet page 16) */
 	typedef enum _PageReadMode {
@@ -198,9 +191,24 @@ typedef enum {
 
 #endif
 
+// TODO: are these needed?
+// #define FlashAddressMask 0x083Ful
+// #define FlashPageSize 0x0840ul
+ 
+// #define SE_TIMEOUT 3 	/* timeout in seconds suggested for Sector Erase Operation */
+
 
 /******************************************************************************
- *									List of APIs
+ *							Internal Functions
+ *****************************************************************************/
+
+NANDReturnType __wait_until_ready(SPI_HandleTypeDef *hspi);
+HAL_StatusTypeDef __write_enable(SPI_HandleTypeDef *hspi);
+HAL_StatusTypeDef __write_disable(SPI_HandleTypeDef *hspi);
+
+
+/******************************************************************************
+ *							List of APIs
  *****************************************************************************/
 
 NANDReturnType NAND_Init(SPI_HandleTypeDef *hspi);
@@ -212,9 +220,9 @@ NANDReturnType NAND_Read_ID(SPI_HandleTypeDef *hspi, NAND_ID *nand_ID);
 // NANDReturnType NAND_Read_Param_Page(SPI_HandleTypeDef *hspi, param_page_t *ppage);
 
 /* feature operations */
-// NANDReturnType NAND_Get_Feature(SPI_HandleTypeDef *hspi, uint8_t feature_address, uint8_t subfeature);
-// NANDReturnType NAND_Set_Feature(SPI_HandleTypeDef *hspi, uint8_t feature_address, uint8_t subfeature);
 uint8_t NAND_Read_Status_Reg(SPI_HandleTypeDef *hspi);
+// NANDReturnType NAND_Get_Feature(uint8_t feature_address, uint8_t subfeature);
+// NANDReturnType NAND_Set_Feature(uint8_t feature_address, uint8_t subfeature);
 
  /* read operations */
 // NANDReturnType NAND_Page_Read(nand_addr_t addr, width *buffer, uint32 length);
