@@ -1,8 +1,13 @@
 # SPI NAND Flash Memory Drivers
 
-   Version:     0.1
-   Author:      Tharun Suresh 
+Drivers for Micron NAND Flash 
+- Supported Models
+  - MT29F2G01ABAGD
+- Prerequisites
+  - STM32 L0 Series Hardware Abstraction Library (HAL) 
 
+Note: The STM32L0 HAL is used for SPI x1 data transfers to and from the NAND Flash IC. Replace nand_spi.c/.h with appropriate functions if using other microcontrollers or a custom SPI library.
+  
 ## Version History
 
 Ver. |      Date      |     Comments     |
@@ -12,10 +17,10 @@ Ver. |      Date      |     Comments     |
 
 ## Contents
 
-In order of high level functions => hardware level: 
+In order of high level functions => hardware: 
 - nand_m79a:
   - Low level drivers for M79a NAND Flash ICs. 
-- spi:
+- nand_spi:
   - SPI wrapper functions used by NAND driver
   - Calls STM32L0 HAL Library to interface with hardware
 
@@ -27,7 +32,27 @@ In order of high level functions => hardware level:
 - Make sure SPI and GPIO are set up (see `NAND_SPI_Init` and `NAND_GPIO_Init` in nand_spi.c for expected settings)
 
 ## References 
-- SPI Drivers for M68A NAND Flash from Micron [v1, 2011](https://media-www.micron.com/-/media/client/global/documents/products/nand-flash-software/mt29f_1gb-32gb_nand_driver.zip?rev=d418de6415a44bc98a55d30068b30494)
-- SPI Drivers for MT29F x8, x16 NAND Flash from Micron [v1.1, 2013](https://micron.com)
 
+### Documents
+- Micron Product Catalog: [MT29F2G01ABAGD](https://www.micron.com/products/nand-flash/serial-nand/part-catalog/mt29f2g01abagdwb-it)
+  - See link for Datasheet and Technical Note TN-29-17: NAND Flash Design and Use Considerations
+- Technical Note TN-29-19: NAND Flash 101 from Micron
 
+### Similar Drivers
+- SPI Drivers for M68A NAND Flash from Micron [Download: v1, 2011](https://media-www.micron.com/-/media/client/global/documents/products/nand-flash-software/mt29f_1gb-32gb_nand_driver.zip?rev=d418de6415a44bc98a55d30068b30494)
+- SPI Drivers for MT29F x8, x16 NAND Flash from Micron [Download: v1.1, 2013](https://micron.com)
+  - Technical Note TN-29-72: Software Drivers for MT29F Micron NAND Flash accompanies these drivers
+
+## To-Do List
+
+### Hardware 
+- Validating driver functions
+
+### Low level features  
+- Bad-block management and mapping from logical addresses to physical locations [Absolutely required]
+- Wear leveling
+- Error correction code (ECC)
+
+### High level features 
+- Functions for writing images and reading them back
+- Handling storage levels and freeing up space as required
