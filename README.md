@@ -19,7 +19,9 @@ Ver. |      Date      |     Comments     |
 
 In order of high level functions => hardware: 
 - nand_m79a:
-  - Low level drivers for M79a NAND Flash ICs. 
+  - Functions for reading and writing to M79a NAND Flash ICs
+- nand_m79a_lld:
+  - Low level drivers implementing individual commands and dealing with physical locations within the NAND IC
 - nand_spi:
   - SPI wrapper functions used by NAND driver
   - Calls STM32L0 HAL Library to interface with hardware
@@ -48,11 +50,11 @@ In order of high level functions => hardware:
 ### Hardware 
 - Validating driver functions
 
-### Low level features  
-- Bad-block management and mapping from logical addresses to physical locations [Absolutely required]
-- Wear leveling
-- Error correction code (ECC)
+### Low level driver features (nand_m79a_lld)
+- Finish implementing all of the commands
 
-### High level features 
-- Functions for writing images and reading them back
-- Handling storage levels and freeing up space as required
+### Higher level features (nand_m79a)
+- Handling storage levels and freeing up space as required [High priority]
+- Bad-block management and mapping from logical addresses to physical locations [High priority]
+- Wear leveling 
+- Error correction code (ECC)
