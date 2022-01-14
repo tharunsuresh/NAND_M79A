@@ -42,7 +42,7 @@
  *                              Internal Functions
  *****************************************************************************/
 
-NAND_ReturnType __map_logical_addr_to_physical(NAND_Addr *address, PhysicalAddrs *addr_struct);
+NAND_ReturnType __map_logical_addr(NAND_Addr *address, PhysicalAddrs *addr_struct);
 
 
 

@@ -38,21 +38,43 @@
     @return NAND_ReturnType
     @retval 
  */
-NAND_ReturnType NAND_Init(SPI_HandleTypeDef *hspi) {
-    
+// NAND_ReturnType func(SPI_HandleTypeDef *hspi) {
+// }
 
-}
+
+/******************************************************************************
+ *                              Reads and Writes
+ *****************************************************************************/
+
+/**
+    @brief 
+    @note 
+
+    @return NAND_ReturnType
+    @retval 
+ */
+// NAND_ReturnType func(SPI_HandleTypeDef *hspi) {
+// }
+
+
+
 /******************************************************************************
  *                              Internal Functions
  *****************************************************************************/
 
+/**
+    @brief 
+    @note 
 
-NAND_ReturnType __map_logical_addr_to_physical(NAND_Addr *address, PhysicalAddrs *addr_struct) {
+    @return NAND_ReturnType
+    @retval 
+ */
+NAND_ReturnType __map_logical_addr(NAND_Addr *address, PhysicalAddrs *addr_struct) {
     addr_struct -> plane    = ADDRESS_2_PLANE(*address);
     addr_struct -> block    = ADDRESS_2_BLOCK(*address);
     addr_struct -> page     = ADDRESS_2_PAGE(*address);
-    addr_struct -> rowAddr  = (ADDRESS_2_BLOCK(*address) << ROW_ADDRESS_PAGE_BITS) | ADDRESS_2_PAGE(*address); 
-    addr_struct -> colAddr  = ADDRESS_2_COL(*address);
+    addr_struct -> rowAddr  = 0 || ((ADDRESS_2_BLOCK(*address) << ROW_ADDRESS_PAGE_BITS) | ADDRESS_2_PAGE(*address)) 
+    addr_struct -> colAddr  = 0 || ((ADDRESS_2_PLANE(*address) << COL_ADDRESS_BITS) | ADDRESS_2_COL(*address));
 
     return Ret_Success;
 }

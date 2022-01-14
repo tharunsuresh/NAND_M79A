@@ -43,6 +43,7 @@ typedef enum {
     // Ret_NoInformationAvailable,
     // Ret_OperationOngoing,
     // Ret_OperationTimeOut,
+    Ret_ReadFailed,
     Ret_ProgramFailed,
     // Ret_SectorProtected,
     // Ret_SectorUnprotected,
@@ -68,25 +69,25 @@ typedef enum {
     #define NAND_ID_DEVICE          0x24
 
     /* device details, see Memory Mapping (Datasheet page 11) */
-    #define FLASH_WIDTH             8                /* Flash data width */
-    #define FLASH_SIZE_BYTES        0x10000000        /* Flash size in bytes */
+    #define FLASH_WIDTH             8               /* Flash data width */
+    #define FLASH_SIZE_BYTES        0x10000000      /* Flash size in bytes */
     #define NUM_BLOCKS              2048            /* Total number of blocks in the device*/
-    #define NUM_PAGES_PER_BLOCK     64                /* Number of pages per block*/
+    #define NUM_PAGES_PER_BLOCK     64              /* Number of pages per block*/
     #define PAGE_SIZE               2176            /* Page size in bytes */
     #define PAGE_DATA_SIZE          2048            /* Page data size in bytes */
-    #define PAGE_SPARE_SIZE         128                /* Page spare size in bytes*/
+    #define PAGE_SPARE_SIZE         128             /* Page spare size in bytes*/
 
     #define BAD_BLOCK_BYTE          PAGE_DATA_SIZE
     #define BAD_BLOCK_VALUE         0x00;
 
     /*
     Page data only:
-        1 page    => 2048 bytes                         =   2048 bytes/page
+        1 page  => 2048 bytes                        = 2048 bytes/page
         1 block => 2048 bytes/page * 64 pages/block  = 131072 bytes/block = 128 KB/block
         device  => 131072 bytes/block * 2048 blocks  = 268,435,456 bytes (256 MB, 0x10_000_000 addrs)
 
     With spares:
-        1 page  => (2048 data + 128 bytes spare)     =   2176 bytes/page
+        1 page  => (2048 data + 128 bytes spare)     = 2176 bytes/page
         1 block => 2176 bytes/page * 64 pages/block  = 139264 bytes/block = 136 KB/block
         device  => 139264 bytes/block * 2048 blocks  = 285,212,672 bytes (2176 Mb, 272 MB, 0x11_000_000 addrs)
     */
@@ -109,8 +110,11 @@ typedef enum {
     /* physical address macros; Input address must be of type NAND_Addr */
     #define ADDRESS_2_BLOCK(Address)    ((uint16_t) (Address >> 17))   // divide by 131072 (2^17 bytes per block)
     #define ADDRESS_2_PLANE(Address)    (ADDRESS_2_BLOCK(Address) & 1) // get the last bit of the block number
-    #define ADDRESS_2_PAGE(Address)        ((uint16_t) ((Address >> 11) & 0x3F))
-    #define ADDRESS_2_COL(Address)        ((uint32_t) (Address & 0x07FF)) // take last 11 bits of address
+    #define ADDRESS_2_PAGE(Address)     ((uint16_t) ((Address >> 11) & 0x3F))
+    #define ADDRESS_2_COL(Address)      ((uint32_t) (Address & 0x07FF)) // take last 11 bits of address
+
+    /* bit macros */
+    #define CHECK_OIP(status_reg)       ((status_reg & SPI_NAND_OIP) == SPI_NAND_OIP) // returns 1 if OIP bit is 1 and device is busy
 
     /* Command Code Definitions (see Datasheet page 13) */
     typedef enum {
@@ -164,7 +168,7 @@ typedef enum {
     */
 
     typedef enum {
-        SPI_NAND_BRWD     = (1 << 7), // block register write disable
+        SPI_NAND_BRWD   = (1 << 7), /* block register write disable */
         SPI_NAND_BP     = (1 << 6) | (1 << 5) | (1 << 4) | (1 << 3), 
         SPI_NAND_TB     = (1 << 2),
         SPI_NAND_WP_D   = (1 << 1), /* Write protect#/hold# disable */
@@ -257,15 +261,15 @@ NAND_ReturnType NAND_Check_OIP(SPI_HandleTypeDef *hspi);
 // NAND_ReturnType NAND_Set_Feature(SPI_HandleTypeDef *hspi, uint8_t feature_address, uint8_t subfeature);
 
 /* read operations */
-NAND_ReturnType NAND_Page_Read(SPI_HandleTypeDef *hspi, PhysicalAddrs *addrs, uint8_t *buffer);
-// NAND_ReturnType NAND_Spare_Read(SPI_HandleTypeDef *hspi, PhysicalAddrs *addrs, uint8_t *buffer);
+NAND_ReturnType NAND_Page_Read(SPI_HandleTypeDef *hspi, PhysicalAddrs *addr, uint8_t *buffer, uint16_t length);
+// NAND_ReturnType NAND_Spare_Read(SPI_HandleTypeDef *hspi, PhysicalAddrs *addr, uint8_t *buffer);
 
-/* erase operations */
-// NAND_ReturnType NAND_Block_Erase(SPI_HandleTypeDef *hspi, PhysicalAddrs *addrs);
-
-/* program operations */
-NAND_ReturnType NAND_Page_Program(SPI_HandleTypeDef *hspi, PhysicalAddrs *addrs, uint8_t *buffer);
+/* write operations */
+NAND_ReturnType NAND_Page_Program(SPI_HandleTypeDef *hspi, PhysicalAddrs *addr, uint8_t *buffer, uint16_t length);
 // NAND_ReturnType NAND_Spare_Program(SPI_HandleTypeDef *hspi, PhysicalAddrs *addrs, uint8_t *buffer);
+
+/* erase operation */
+NAND_ReturnType NAND_Block_Erase(SPI_HandleTypeDef *hspi, PhysicalAddrs *addr);
 
 /* internal data move operations */
 // NAND_ReturnType NAND_Copy_Back(SPI_HandleTypeDef *hspi, NAND_Addr src_addr, NAND_Addr dest_addr);

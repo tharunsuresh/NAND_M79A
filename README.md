@@ -52,6 +52,17 @@ In order of high level functions => hardware:
 
 ### Low level driver features (nand_m79a_lld)
 - Finish implementing all of the commands
+  - Read all registers, subfeatures
+  - Read and write to spare areas
+  - Move, lock operations
+  - Read bad block bytes
+  - Parameter page [Low priority]
+  - OTP areas [Low priority]
+
+- Optimize functions
+  - NAND_Wait(1) wastes time. 
+    - No command takes that long to complete.
+    - Compounds when calling the function multiple times.
 
 ### Higher level features (nand_m79a)
 - Handling storage levels and freeing up space as required [High priority]
