@@ -1,24 +1,23 @@
 /************************** NAND SPI Functions ***********************************
 
-   Filename:    nand_spi.c
-   Description: Implements SPI wrapper functions for use by low-level drivers.
+    Filename:    nand_spi.c
+    Description: Implements SPI wrapper functions for use by low-level drivers.
                 Uses HAL library for STM32L0 series.
 
-   Version:     0.1
-   Author:      Tharun Suresh
+    Version:     0.1
+    Author:      Tharun Suresh
 
 ********************************************************************************
 
-   Version History.
+    Version History.
 
-   Ver.		Date			   Comments
+    Ver.    Date            Comments
 
-   0.1		Jan 2022 	   In Development
+    0.1     Jan 2022        In Development
 
 ********************************************************************************
 
-  	The following functions are available in this library:
-
+    The following functions are available in this library:
 
 
 ********************************************************************************/
@@ -26,7 +25,7 @@
 #include "nand_spi.h"
 
 /******************************************************************************
- *						Initialization
+ *                              Initialization
  *****************************************************************************/
 
 // SPI_HandleTypeDef hspi_nand;
@@ -89,17 +88,17 @@ void NAND_Wait(uint8_t milliseconds){
 
 
 /******************************************************************************
- *						Send & Receive Complete Transactions 
+ *                     Send & Receive Complete Transactions 
  *****************************************************************************/
 
 /**
 	@brief NAND Data input: this function is used to write data to NAND.
 */
-NAND_SPI_ReturnType NAND_SPI_Send(SPI_HandleTypeDef *hspi, uint8_t *buffer_send, uint16_t length_send){
+NAND_SPI_ReturnType NAND_SPI_Send(SPI_HandleTypeDef *hspi, SPI_Params *data_send) {
 	HAL_StatusTypeDef send_status;
 
 	__nand_spi_cs_low();
-	send_status = HAL_SPI_Transmit(hspi, buffer_send, length_send, NAND_SPI_TIMEOUT);
+	send_status = HAL_SPI_Transmit(hspi, data_send->buffer, data_send->length, NAND_SPI_TIMEOUT);
 	__nand_spi_cs_high();
 
 	if (send_status != HAL_OK) {
@@ -114,15 +113,12 @@ NAND_SPI_ReturnType NAND_SPI_Send(SPI_HandleTypeDef *hspi, uint8_t *buffer_send,
 /**
 	@brief NAND Data transmit: this function is used to send and receive read data from NAND.
 */
-
-NAND_SPI_ReturnType NAND_SPI_SendReceive(SPI_HandleTypeDef *hspi,
-									uint8_t *buffer_send, uint16_t length_send,
-									uint8_t *buffer_recv, uint16_t length_recv){
+NAND_SPI_ReturnType NAND_SPI_SendReceive(SPI_HandleTypeDef *hspi, SPI_Params *data_send, SPI_Params *data_recv) {
 	HAL_StatusTypeDef transmit_status;
 
 	__nand_spi_cs_low();
-	HAL_SPI_Transmit(hspi, buffer_send, length_send, NAND_SPI_TIMEOUT);
-	transmit_status = HAL_SPI_Receive(hspi, buffer_recv, length_recv, NAND_SPI_TIMEOUT);
+	HAL_SPI_Transmit(hspi, data_send->buffer, data_send->length, NAND_SPI_TIMEOUT);
+	transmit_status = HAL_SPI_Receive(hspi, data_recv->buffer, data_recv->length, NAND_SPI_TIMEOUT);
 	__nand_spi_cs_high();
 
 	if (transmit_status != HAL_OK) {
@@ -136,12 +132,11 @@ NAND_SPI_ReturnType NAND_SPI_SendReceive(SPI_HandleTypeDef *hspi,
 /**
 	@brief NAND Data output: this function is used to read data from NAND.
 */
-
-NAND_SPI_ReturnType NAND_SPI_Receive(SPI_HandleTypeDef *hspi, uint8_t *buffer_recv, uint16_t length_recv){
+NAND_SPI_ReturnType NAND_SPI_Receive(SPI_HandleTypeDef *hspi, SPI_Params *data_recv) {
 	HAL_StatusTypeDef receive_status;
 
 	__nand_spi_cs_low();
-	receive_status = HAL_SPI_Receive(hspi, buffer_recv, length_recv, NAND_SPI_TIMEOUT);
+	receive_status = HAL_SPI_Receive(hspi, data_recv->buffer, data_recv->length, NAND_SPI_TIMEOUT);
 	__nand_spi_cs_high();
 
 	if (receive_status != HAL_OK) {
@@ -152,19 +147,18 @@ NAND_SPI_ReturnType NAND_SPI_Receive(SPI_HandleTypeDef *hspi, uint8_t *buffer_re
 };
 
 /******************************************************************************
- *				Send command and data in one transaction  
+ *                  Send command and data in one transaction  
  *****************************************************************************/
 
 /**
 	@brief NAND Data input: this function is used to write data to NAND.
 */
-NAND_SPI_ReturnType NAND_SPI_Send_Command_Data(SPI_HandleTypeDef *hspi, uint8_t *buffer_cmd, uint16_t length_cmd, 
-																	 uint8_t *buffer_data, uint16_t length_data){
+NAND_SPI_ReturnType NAND_SPI_Send_Command_Data(SPI_HandleTypeDef *hspi, SPI_Params *cmd_send, SPI_Params *data_send) {
 	HAL_StatusTypeDef send_status;
 
 	__nand_spi_cs_low();
-	HAL_SPI_Transmit(hspi, buffer_cmd, length_cmd, NAND_SPI_TIMEOUT);
-	send_status = HAL_SPI_Transmit(hspi, buffer_data, length_data, NAND_SPI_TIMEOUT);
+	HAL_SPI_Transmit(hspi, cmd_send->buffer, cmd_send->length, NAND_SPI_TIMEOUT);
+	send_status = HAL_SPI_Transmit(hspi, data_send->buffer, data_send->length, NAND_SPI_TIMEOUT);
 	__nand_spi_cs_high();
 
 	if (send_status != HAL_OK) {
@@ -175,7 +169,7 @@ NAND_SPI_ReturnType NAND_SPI_Send_Command_Data(SPI_HandleTypeDef *hspi, uint8_t 
 };
 
 /******************************************************************************
- *						Internal Functions
+ *                              Internal Functions
  *****************************************************************************/
 
 /**

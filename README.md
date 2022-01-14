@@ -6,7 +6,7 @@ Drivers for Micron NAND Flash
 - Dependencies
   - STM32 L0 Series Hardware Abstraction Library (HAL) 
 
-Note: The STM32L0 HAL is used for SPI x1 data transfers to and from the NAND Flash IC. If using other microcontrollers or a custom SPI library, replace nand_spi.c/.h with appropriate functions.
+Note: The STM32L0 HAL is used for SPI x1 data transfers to and from the NAND Flash IC. This driver set is meant to be used with STM32 Microcontrollers.
   
 ## Version History
 
@@ -21,7 +21,7 @@ In order of high level functions => hardware:
 - nand_m79a:
   - Functions for reading and writing to M79a NAND Flash ICs
 - nand_m79a_lld:
-  - Low level drivers implementing individual commands and dealing with physical locations within the NAND IC
+  - Low level drivers implementing individual commands and dealing with physical locations within the NAND
 - nand_spi:
   - SPI wrapper functions used by NAND driver
   - Calls STM32L0 HAL Library to interface with hardware
@@ -48,7 +48,7 @@ In order of high level functions => hardware:
 ## To-Do List
 
 ### Hardware 
-- Validating driver functions
+- Validate driver functions
 
 ### Low level driver features (nand_m79a_lld)
 - Finish implementing all of the commands

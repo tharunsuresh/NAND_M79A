@@ -1,23 +1,23 @@
 /************************** Flash Memory Driver ***********************************
 
-   Filename:    nand_m79a.h
-   Description: Top NAND controller layer that manages storage and maps logical addresses
-                to physical locations using low level drivers.
+    Filename:    nand_m79a.h
+    Description: Top NAND controller layer that manages storage and maps logical addresses
+                 to physical locations using low level drivers.
 
-   Version:     0.1
-   Author:      Tharun Suresh
-
-********************************************************************************
-
-   Version History.
-
-   Ver.		Date			Comments
-
-   0.1		Jan 2022 		In Development
+    Version:     0.1
+    Author:      Tharun Suresh
 
 ********************************************************************************
 
-  	The following functions are available in this library:
+    Version History.
+
+    Ver.        Date            Comments
+
+    0.1        Jan 2022         In Development
+
+********************************************************************************
+
+    The following functions are available in this library:
 
 
 ********************************************************************************/
@@ -37,3 +37,25 @@
 
 // Manage bad blocks, ECC and locking. 
 // Possibly more difficult features such as wear leveling
+
+/******************************************************************************
+ *                              Internal Functions
+ *****************************************************************************/
+
+NAND_ReturnType __map_logical_addr_to_physical(NAND_Addr *address, PhysicalAddrs *addr_struct);
+
+
+
+
+/******************************************************************************
+ *                              List of APIs
+ *****************************************************************************/
+
+
+
+
+
+
+
+
+

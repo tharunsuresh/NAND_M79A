@@ -3,23 +3,22 @@
 
    Filename:    nand_spi.h
    Description: Implements SPI wrapper functions for use by low-level drivers.
-                Uses HAL library for STM32L0 series.
+                  Uses HAL library for STM32L0 series.
 
    Version:     0.1
    Author:      Tharun Suresh
 
 ********************************************************************************
 
-   Version History.
+    Version History.
 
-   Ver.		Date			   Comments
+    Ver.    Date            Comments
 
-   0.1		Jan 2022 	   In Development
+    0.1     Jan 2022        In Development
 
 ********************************************************************************
-  
-  The following functions are available in this library:
 
+    The following functions are available in this library:
 
 
 ********************************************************************************/
@@ -39,33 +38,37 @@
 #define DUMMY_BYTE	      0
 #define NAND_SPI_TIMEOUT   100
 
+/* using custom return type to keep higher layers as platform-agnostic as possible */
 typedef enum {
-	SPI_OK,
-	SPI_Fail
+    SPI_OK,
+    SPI_Fail
 } NAND_SPI_ReturnType;
 
+/* SPI Transaction Parameters */
+typedef struct {
+    uint8_t *buffer;
+    uint16_t length;
+} SPI_Params;
+
 /******************************************************************************
- *									Internal Functions
+ *                              Internal Functions
  *****************************************************************************/
 
-   void __nand_spi_cs_low(void); 
-   void __nand_spi_cs_high(void); 
+    void __nand_spi_cs_low(void); 
+    void __nand_spi_cs_high(void); 
 
 /******************************************************************************
- *									List of APIs
+ *                                  List of APIs
  *****************************************************************************/
+   
+    /* General functions */
+    void NAND_Wait(uint8_t milliseconds);
 
-   void NAND_Wait(uint8_t milliseconds);
+    /* Wrapper functions for sending and receiving data */
+    NAND_SPI_ReturnType NAND_SPI_Send(SPI_HandleTypeDef *hspi, SPI_Params *data_send);
+    NAND_SPI_ReturnType NAND_SPI_SendReceive(SPI_HandleTypeDef *hspi, SPI_Params *data_send, SPI_Params *data_recv);
+    NAND_SPI_ReturnType NAND_SPI_Receive(SPI_HandleTypeDef *hspi, SPI_Params *data_recv);
 
-   /* Wrapper functions for sending and receiving data */
-   NAND_SPI_ReturnType NAND_SPI_Send(SPI_HandleTypeDef *hspi, uint8_t *buffer_send, uint16_t length_send);
-   NAND_SPI_ReturnType NAND_SPI_SendReceive(SPI_HandleTypeDef *hspi,
-		   	   	   	   	   	   	uint8_t *buffer_send, uint16_t length_send,
-									               uint8_t *buffer_recv, uint16_t length_recv);
-   NAND_SPI_ReturnType NAND_SPI_Receive(SPI_HandleTypeDef *hspi, uint8_t *buffer_recv, uint16_t length_recv);
+    NAND_SPI_ReturnType NAND_SPI_Send_Command_Data(SPI_HandleTypeDef *hspi, SPI_Params *cmd_send, SPI_Params *data_send);
 
-
-
-   NAND_SPI_ReturnType NAND_SPI_Send_Command_Data(SPI_HandleTypeDef *hspi, uint8_t *buffer_cmd, uint16_t length_cmd, 
-																	                     uint8_t *buffer_data, uint16_t length_data);
 /******************************************************************************/
