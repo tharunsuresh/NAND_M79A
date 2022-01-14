@@ -1,7 +1,7 @@
 /************************** Flash Memory Driver ***********************************
 
-   Filename:    nand_m79a.h
-   Description: Low-level functions for reading and writing to M79a NAND Flash via SPI.
+   Filename:    nand_m79a_lld.h
+   Description: Low-level driver functions for reading and writing to M79a NAND Flash via SPI.
 
    Version:     0.1
    Author:      Tharun Suresh 
@@ -52,7 +52,7 @@ typedef enum {
 	// Ret_SectorUnlocked,
 	// Ret_SectorLockDownFailed,
 	Ret_WrongType
-} NANDReturnType;
+} NAND_ReturnType;
 
 /* List of supported devices */
 #define MT29F2G01ABAGD
@@ -234,44 +234,44 @@ typedef enum {
 /******************************************************************************
  *							Internal Functions
  *****************************************************************************/
-HAL_StatusTypeDef __write_enable(SPI_HandleTypeDef *hspi);
-HAL_StatusTypeDef __write_disable(SPI_HandleTypeDef *hspi);
+NAND_SPI_ReturnType __write_enable(SPI_HandleTypeDef *hspi);
+NAND_SPI_ReturnType __write_disable(SPI_HandleTypeDef *hspi);
 
-NANDReturnType __wait_until_ready(SPI_HandleTypeDef *hspi);
-NANDReturnType __map_logical_addr_to_physical(NAND_Addr *address, PhysicalAddrs *addr_struct);
+NAND_ReturnType __wait_until_ready(SPI_HandleTypeDef *hspi);
+NAND_ReturnType __map_logical_addr_to_physical(NAND_Addr *address, PhysicalAddrs *addr_struct);
 
 /******************************************************************************
  *							List of APIs
  *****************************************************************************/
 
-NANDReturnType NAND_Init(SPI_HandleTypeDef *hspi);
-NANDReturnType NAND_Reset(SPI_HandleTypeDef *hspi);
+NAND_ReturnType NAND_Init(SPI_HandleTypeDef *hspi);
+NAND_ReturnType NAND_Reset(SPI_HandleTypeDef *hspi);
 
 /* identification operations */
-NANDReturnType NAND_Read_ID(SPI_HandleTypeDef *hspi, NAND_ID *nand_ID);
-// NANDReturnType NAND_Read_Param_Page(SPI_HandleTypeDef *hspi, param_page_t *ppage);
+NAND_ReturnType NAND_Read_ID(SPI_HandleTypeDef *hspi, NAND_ID *nand_ID);
+// NAND_ReturnType NAND_Read_Param_Page(SPI_HandleTypeDef *hspi, param_page_t *ppage);
 
 /* feature operations */
 uint8_t NAND_Read_Status_Reg(SPI_HandleTypeDef *hspi);
-NANDReturnType NAND_Check_OIP(SPI_HandleTypeDef *hspi);
-// NANDReturnType NAND_Get_Feature(SPI_HandleTypeDef *hspi, uint8_t feature_address, uint8_t subfeature);
-// NANDReturnType NAND_Set_Feature(SPI_HandleTypeDef *hspi, uint8_t feature_address, uint8_t subfeature);
+NAND_ReturnType NAND_Check_OIP(SPI_HandleTypeDef *hspi);
+// NAND_ReturnType NAND_Get_Feature(SPI_HandleTypeDef *hspi, uint8_t feature_address, uint8_t subfeature);
+// NAND_ReturnType NAND_Set_Feature(SPI_HandleTypeDef *hspi, uint8_t feature_address, uint8_t subfeature);
 
  /* read operations */
-NANDReturnType NAND_Page_Read(SPI_HandleTypeDef *hspi, NAND_Addr addr, uint8_t *buffer);
-// NANDReturnType NAND_Spare_Read(SPI_HandleTypeDef *hspi, NAND_Addr addr, uint8_t *buffer);
+NAND_ReturnType NAND_Page_Read(SPI_HandleTypeDef *hspi, NAND_Addr addr, uint8_t *buffer);
+// NAND_ReturnType NAND_Spare_Read(SPI_HandleTypeDef *hspi, NAND_Addr addr, uint8_t *buffer);
 
  /* erase operations */
-// NANDReturnType NAND_Block_Erase(SPI_HandleTypeDef *hspi, NAND_Addr addr);
+// NAND_ReturnType NAND_Block_Erase(SPI_HandleTypeDef *hspi, NAND_Addr addr);
 
  /* program operations */
-// NANDReturnType NAND_Page_Program(SPI_HandleTypeDef *hspi, NAND_Addr addr, uint8_t *buffer, uint32_t length);
-// NANDReturnType NAND_Spare_Program(SPI_HandleTypeDef *hspi, NAND_Addr addr, uint8_t *buffer, uint32_t length);
+NAND_ReturnType NAND_Page_Program(SPI_HandleTypeDef *hspi, NAND_Addr logical_addr, uint8_t *buffer);
+// NAND_ReturnType NAND_Spare_Program(SPI_HandleTypeDef *hspi, NAND_Addr logical_addr, uint8_t *buffer);
 
  /* internal data move operations */
-// NANDReturnType NAND_Copy_Back(SPI_HandleTypeDef *hspi, NAND_Addr src_addr, NAND_Addr dest_addr);
+// NAND_ReturnType NAND_Copy_Back(SPI_HandleTypeDef *hspi, NAND_Addr src_addr, NAND_Addr dest_addr);
 
  /* block lock operations */
-// NANDReturnType NAND_Lock(void);
-// NANDReturnType NAND_Unlock(NAND_Addr start_block, NAND_Addr end_block);
-// NANDReturnType NAND_Read_Lock_Status(NAND_Addr block_addr);
+// NAND_ReturnType NAND_Lock(void);
+// NAND_ReturnType NAND_Unlock(NAND_Addr start_block, NAND_Addr end_block);
+// NAND_ReturnType NAND_Read_Lock_Status(NAND_Addr block_addr);

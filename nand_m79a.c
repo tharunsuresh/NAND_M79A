@@ -1,7 +1,7 @@
 /************************** Flash Memory Driver ***********************************
 
-   Filename:    nand_m79a.c
-   Description: Low-level functions for reading and writing to M79a NAND Flash via SPI.
+   Filename:    nand_m79a_lld.c
+   Description: Low-level driver functions for reading and writing to M79a NAND Flash via SPI.
 
    Version:     0.1
    Author:      Tharun Suresh
@@ -21,7 +21,7 @@
 
 ********************************************************************************/
 
-#include "nand_m79a.h"
+#include "nand_m79a_lld.h"
 
 
 /******************************************************************************
@@ -32,12 +32,12 @@
     @brief Initializes the NAND. Steps: Reset device and check for correct device IDs.
  	@note This function must be called first when powered on.
 
-    @return NANDReturnType
+    @return NAND_ReturnType
     @retval Ret_ResetFailed
     @retval Ret_WrongID
     @retval Ret_Success
  */
-NANDReturnType NAND_Init(SPI_HandleTypeDef *hspi) {
+NAND_ReturnType NAND_Init(SPI_HandleTypeDef *hspi) {
 
 	NAND_ID dev_ID;
 
@@ -63,19 +63,19 @@ NANDReturnType NAND_Init(SPI_HandleTypeDef *hspi) {
  	@brief Sends command to reset the NAND Flash chip.
 	@note Transaction length: 1 byte; Returns success when Flash is ready for further instructions.
 
-    @return NANDReturnType
+    @return NAND_ReturnType
     @retval Ret_ResetFailed
     @retval Ret_Success
 */
-NANDReturnType NAND_Reset(SPI_HandleTypeDef *hspi) {
+NAND_ReturnType NAND_Reset(SPI_HandleTypeDef *hspi) {
 
-	HAL_StatusTypeDef SPI_Status;
+	NAND_SPI_ReturnType SPI_Status;
 	uint8_t command = SPI_NAND_RESET;
 
 	SPI_Status = NAND_SPI_Send(hspi, &command, 1);
 	NAND_Wait(T_POR);	// wait for T_POR = 1.25 ms after reset
 
-	if (SPI_Status != HAL_OK) {
+	if (SPI_Status != SPI_OK) {
 		return Ret_ResetFailed;
 	} else {
 		// wait until OIP bit resets again (Flash is ready for further instructions)
@@ -92,13 +92,13 @@ NANDReturnType NAND_Reset(SPI_HandleTypeDef *hspi) {
     @brief Sends command to read manufacturer and device ID of NAND flash chip
 	@note Transaction length: 4 bytes (2 each way)
 
-    @return NANDReturnType
+    @return NAND_ReturnType
     @retval Ret_ResetFailed
     @retval Ret_Success
 
  */
 
-NANDReturnType NAND_Read_ID(SPI_HandleTypeDef *hspi, NAND_ID *nand_ID) {
+NAND_ReturnType NAND_Read_ID(SPI_HandleTypeDef *hspi, NAND_ID *nand_ID) {
 
 	uint8_t length_tx = 2;
 	uint8_t data_tx[] = {SPI_NAND_READ_ID, 0}; // second byte is dummy byte
@@ -143,11 +143,11 @@ uint8_t NAND_Read_Status_Reg(SPI_HandleTypeDef *hspi) {
  	@brief Sends command to read status register bit 1 (OIP).
 	@note Transaction length: 3 bytes (2 to transmit, 1 to receive)
 
-    @return NANDReturnType
+    @return NAND_ReturnType
     @retval Ret_Success
 	@retval Ret_NANDBusy
 */
-NANDReturnType NAND_Check_OIP(SPI_HandleTypeDef *hspi) {
+NAND_ReturnType NAND_Check_OIP(SPI_HandleTypeDef *hspi) {
 	if ((NAND_Read_Status_Reg(hspi) & SPI_NAND_OIP) == SPI_NAND_OIP) {
 		return Ret_NANDBusy;
 	} else {
@@ -174,7 +174,7 @@ NANDReturnType NAND_Check_OIP(SPI_HandleTypeDef *hspi) {
     @return Data buffer
     @retval 
 */
-NANDReturnType NAND_Page_Read(SPI_HandleTypeDef *hspi, NAND_Addr addr, uint8_t *buffer) {
+NAND_ReturnType NAND_Page_Read(SPI_HandleTypeDef *hspi, NAND_Addr addr, uint8_t *buffer) {
 
 }
 
@@ -184,7 +184,7 @@ NANDReturnType NAND_Page_Read(SPI_HandleTypeDef *hspi, NAND_Addr addr, uint8_t *
  *****************************************************************************/
 
 
-/*
+/* TODO:
  * The first spare area location in each bad block contains the bad-block mark (0x00).
  * System software should initially check the first spare area location (byte 2048) for non-FFh data on
  * the first page of each block prior to performing any program or erase operations on the
@@ -200,7 +200,7 @@ NANDReturnType NAND_Page_Read(SPI_HandleTypeDef *hspi, NAND_Addr addr, uint8_t *
     @return 
     @retval 
 */
-NANDReturnType NAND_Block_Erase( ) {
+NAND_ReturnType NAND_Block_Erase( ) {
 
 
 }
@@ -216,11 +216,9 @@ NANDReturnType NAND_Block_Erase( ) {
  * System software should initially check the first spare area location (byte 2048) for non-FFh data on
  * the first page of each block prior to performing any program or erase operations on the
  * NAND Flash device.
- *
- * 	TODO: if any of the load or execute returns are not ret_success then return program failed;
  */
 /**
- 	@brief 
+ 	@brief Write 2176 bytes to a page. Address must be the start address of a page. TODO: how to make sure? 
 	@note Command sequence: 
 			1) WRITE ENABLE
 			2) PROGRAM LOAD : load data into cache register
@@ -229,12 +227,13 @@ NANDReturnType NAND_Block_Erase( ) {
     @return 
     @retval 
 */
-NANDReturnType NAND_Page_Program(SPI_HandleTypeDef *hspi, NAND_Addr logical_addr, uint8_t *buffer) {
+NAND_ReturnType NAND_Page_Program(SPI_HandleTypeDef *hspi, NAND_Addr logical_addr, uint8_t *buffer) {
 
 	/* variables for SPI transmissions */
 	uint16_t addr;
 	uint16_t length_cmd;
 	uint16_t length_data;
+	NAND_SPI_ReturnType status; 
 
 	/* construct row and column addresses from NAND Address */
 	PhysicalAddrs physical_addrs;
@@ -248,28 +247,30 @@ NANDReturnType NAND_Page_Program(SPI_HandleTypeDef *hspi, NAND_Addr logical_addr
 	length_cmd   = 3;
 	length_data  = PAGE_SIZE;
 	uint8_t command_load[3] = {SPI_NAND_PROGRAM_LOAD_X1, (addr >> 8), (addr & 0xFF)};
-
-	// TODO: check program fail bit in status register. do it here or early in program execute? 
-	NAND_SPI_Send_CommandData(hspi, command_load, length_cmd, buffer, length_data);
-
 	
-	/* Command 3: PROGRAM EXECUTE. See datasheet page 31 for details */
+	status = NAND_SPI_Send_Command_Data(hspi, command_load, length_cmd, buffer, length_data);
+	
+	if (status != SPI_OK) {
+		return Ret_ProgramFailed;
+	}
 
+	/* Command 3: PROGRAM EXECUTE. See datasheet page 31 for details */
 	addr         = physical_addrs.rowAddr;
 	length_cmd   = 4;
 	uint8_t command_exec[4] = {SPI_NAND_PROGRAM_EXEC, (addr >> 16), (addr >> 8), (addr & 0xFF)};
-
-	HAL_StatusTypeDef status = NAND_SPI_Send(hspi, command_exec, length_cmd);
+	
+	status = NAND_SPI_Send(hspi, command_exec, length_cmd);
+	
+	if (status != SPI_OK) {
+		return Ret_ProgramFailed;
+	}
 
 	/* Command 4: WRITE DISABLE */
 	__write_disable(hspi);
-	__wait_until_ready(hspi);
+	
+	// TODO: check program fail bit in status register
 
-	if (status == HAL_OK) {
-//		return ;
-	} else {
-//		return Ret_ProgramFailed;
-	};
+	return __wait_until_ready(hspi);
 }
 
 
@@ -299,12 +300,12 @@ NANDReturnType NAND_Page_Program(SPI_HandleTypeDef *hspi, NAND_Addr logical_addr
  *****************************************************************************/
 
 
-HAL_StatusTypeDef __write_enable(SPI_HandleTypeDef *hspi) {
+NAND_SPI_ReturnType __write_enable(SPI_HandleTypeDef *hspi) {
 	uint8_t command = SPI_NAND_WRITE_ENABLE;
 	return NAND_SPI_Send(hspi, &command, 1);
 }
 
-HAL_StatusTypeDef __write_disable(SPI_HandleTypeDef *hspi) {
+NAND_SPI_ReturnType __write_disable(SPI_HandleTypeDef *hspi) {
 	uint8_t command = SPI_NAND_WRITE_DISABLE;
 	return NAND_SPI_Send(hspi, &command, 1);
 }
@@ -319,23 +320,34 @@ HAL_StatusTypeDef __write_disable(SPI_HandleTypeDef *hspi) {
 	until another command is issued. This is shown in pages 17 and 31.
 	TODO: confirm with an oscilloscope.
 
-    @return NANDReturnType
+    @return NAND_ReturnType
     @retval Ret_Success
  */
-NANDReturnType __wait_until_ready(SPI_HandleTypeDef *hspi) {
-	// uint8_t data_rx;
-	// 
-	// if (NAND_Check_OIP(hspi) == Ret_NANDBusy) {
-	// 	while ((data_rx & SPI_NAND_OIP) == SPI_NAND_OIP) {
-	// 		NAND_SPI_ReceiveData(hspi, &data_rx, 1);
-	// 		NAND_Wait(1);
-	// 	}
-	// }
+NAND_ReturnType __wait_until_ready(SPI_HandleTypeDef *hspi) {
+	uint8_t data_rx;
+	uint8_t counter = 0;
+	uint8_t max_attempts = 10;
+	
+	/* check once if any operations in progress */
+	NAND_ReturnType status = NAND_CHECK_OIP(hspi);
+
+	/* if busy, keep polling for until reaching max_attempts. if still busy, return busy */
+	if (status == Ret_NANDBusy) {
+		while ((data_rx & SPI_NAND_OIP) == SPI_NAND_OIP) {
+			if (counter < max_timeout_attempts) {
+				NAND_SPI_ReceiveData(hspi, &data_rx, 1);
+				NAND_Wait(1);
+				counter += 1;
+			} else {
+				return Ret_NANDBusy;
+			}
+		}
+	}
 	return Ret_Success;
 }
 
 
-NANDReturnType __map_logical_addr_to_physical(NAND_Addr *address, PhysicalAddrs *addr_struct) {
+NAND_ReturnType __map_logical_addr_to_physical(NAND_Addr *address, PhysicalAddrs *addr_struct) {
 	addr_struct -> plane 	= ADDRESS_2_PLANE(*address);
 	addr_struct -> block 	= ADDRESS_2_BLOCK(*address);
 	addr_struct -> page  	= ADDRESS_2_PAGE(*address);

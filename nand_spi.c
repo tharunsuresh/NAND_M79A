@@ -95,14 +95,19 @@ void NAND_Wait(uint8_t milliseconds){
 /**
 	@brief NAND Data input: this function is used to write data to NAND.
 */
-HAL_StatusTypeDef NAND_SPI_Send(SPI_HandleTypeDef *hspi, uint8_t *buffer_send, uint16_t length_send){
+NAND_SPI_ReturnType NAND_SPI_Send(SPI_HandleTypeDef *hspi, uint8_t *buffer_send, uint16_t length_send){
 	HAL_StatusTypeDef send_status;
 
 	__nand_spi_cs_low();
 	send_status = HAL_SPI_Transmit(hspi, buffer_send, length_send, NAND_SPI_TIMEOUT);
 	__nand_spi_cs_high();
 
-	return send_status;
+	if (send_status != HAL_OK) {
+		return SPI_Fail; 
+	} else {
+		return SPI_OK;
+	}
+
 };
 
 
@@ -110,7 +115,7 @@ HAL_StatusTypeDef NAND_SPI_Send(SPI_HandleTypeDef *hspi, uint8_t *buffer_send, u
 	@brief NAND Data transmit: this function is used to send and receive read data from NAND.
 */
 
-HAL_StatusTypeDef NAND_SPI_SendReceive(SPI_HandleTypeDef *hspi,
+NAND_SPI_ReturnType NAND_SPI_SendReceive(SPI_HandleTypeDef *hspi,
 									uint8_t *buffer_send, uint16_t length_send,
 									uint8_t *buffer_recv, uint16_t length_recv){
 	HAL_StatusTypeDef transmit_status;
@@ -120,7 +125,11 @@ HAL_StatusTypeDef NAND_SPI_SendReceive(SPI_HandleTypeDef *hspi,
 	transmit_status = HAL_SPI_Receive(hspi, buffer_recv, length_recv, NAND_SPI_TIMEOUT);
 	__nand_spi_cs_high();
 
-	return transmit_status;
+	if (transmit_status != HAL_OK) {
+		return SPI_Fail; 
+	} else {
+		return SPI_OK;
+	}
 };
 
 
@@ -128,14 +137,18 @@ HAL_StatusTypeDef NAND_SPI_SendReceive(SPI_HandleTypeDef *hspi,
 	@brief NAND Data output: this function is used to read data from NAND.
 */
 
-HAL_StatusTypeDef NAND_SPI_Receive(SPI_HandleTypeDef *hspi, uint8_t *buffer_recv, uint16_t length_recv){
+NAND_SPI_ReturnType NAND_SPI_Receive(SPI_HandleTypeDef *hspi, uint8_t *buffer_recv, uint16_t length_recv){
 	HAL_StatusTypeDef receive_status;
 
 	__nand_spi_cs_low();
 	receive_status = HAL_SPI_Receive(hspi, buffer_recv, length_recv, NAND_SPI_TIMEOUT);
 	__nand_spi_cs_high();
 
-	return receive_status;
+	if (receive_status != HAL_OK) {
+		return SPI_Fail; 
+	} else {
+		return SPI_OK;
+	}
 };
 
 /******************************************************************************
@@ -145,7 +158,7 @@ HAL_StatusTypeDef NAND_SPI_Receive(SPI_HandleTypeDef *hspi, uint8_t *buffer_recv
 /**
 	@brief NAND Data input: this function is used to write data to NAND.
 */
-HAL_StatusTypeDef NAND_SPI_Send_CommandData(SPI_HandleTypeDef *hspi, uint8_t *buffer_cmd, uint16_t length_cmd, 
+NAND_SPI_ReturnType NAND_SPI_Send_Command_Data(SPI_HandleTypeDef *hspi, uint8_t *buffer_cmd, uint16_t length_cmd, 
 																	 uint8_t *buffer_data, uint16_t length_data){
 	HAL_StatusTypeDef send_status;
 
@@ -154,7 +167,11 @@ HAL_StatusTypeDef NAND_SPI_Send_CommandData(SPI_HandleTypeDef *hspi, uint8_t *bu
 	send_status = HAL_SPI_Transmit(hspi, buffer_data, length_data, NAND_SPI_TIMEOUT);
 	__nand_spi_cs_high();
 
-	return send_status;
+	if (send_status != HAL_OK) {
+		return SPI_Fail; 
+	} else {
+		return SPI_OK;
+	}
 };
 
 /******************************************************************************

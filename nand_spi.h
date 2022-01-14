@@ -39,6 +39,10 @@
 #define DUMMY_BYTE	      0
 #define NAND_SPI_TIMEOUT   100
 
+typedef enum {
+	SPI_OK,
+	SPI_Fail
+} NAND_SPI_ReturnType;
 
 /******************************************************************************
  *									Internal Functions
@@ -54,14 +58,14 @@
    void NAND_Wait(uint8_t milliseconds);
 
    /* Wrapper functions for sending and receiving data */
-   HAL_StatusTypeDef NAND_SPI_Send(SPI_HandleTypeDef *hspi, uint8_t *buffer_send, uint16_t length_send);
-   HAL_StatusTypeDef NAND_SPI_SendReceive(SPI_HandleTypeDef *hspi,
+   NAND_SPI_ReturnType NAND_SPI_Send(SPI_HandleTypeDef *hspi, uint8_t *buffer_send, uint16_t length_send);
+   NAND_SPI_ReturnType NAND_SPI_SendReceive(SPI_HandleTypeDef *hspi,
 		   	   	   	   	   	   	uint8_t *buffer_send, uint16_t length_send,
 									               uint8_t *buffer_recv, uint16_t length_recv);
-   HAL_StatusTypeDef NAND_SPI_Receive(SPI_HandleTypeDef *hspi, uint8_t *buffer_recv, uint16_t length_recv);
+   NAND_SPI_ReturnType NAND_SPI_Receive(SPI_HandleTypeDef *hspi, uint8_t *buffer_recv, uint16_t length_recv);
 
 
 
-   HAL_StatusTypeDef NAND_SPI_Send_CommandData(SPI_HandleTypeDef *hspi, uint8_t *buffer_cmd, uint16_t length_cmd, 
+   NAND_SPI_ReturnType NAND_SPI_Send_Command_Data(SPI_HandleTypeDef *hspi, uint8_t *buffer_cmd, uint16_t length_cmd, 
 																	                     uint8_t *buffer_data, uint16_t length_data);
 /******************************************************************************/
