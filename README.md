@@ -3,10 +3,10 @@
 Drivers for Micron NAND Flash 
 - Supported Models
   - MT29F2G01ABAGD
-- Prerequisites
+- Dependencies
   - STM32 L0 Series Hardware Abstraction Library (HAL) 
 
-Note: The STM32L0 HAL is used for SPI x1 data transfers to and from the NAND Flash IC. Replace nand_spi.c/.h with appropriate functions if using other microcontrollers or a custom SPI library.
+Note: The STM32L0 HAL is used for SPI x1 data transfers to and from the NAND Flash IC. If using other microcontrollers or a custom SPI library, replace nand_spi.c/.h with appropriate functions.
   
 ## Version History
 
@@ -36,7 +36,7 @@ In order of high level functions => hardware:
 ### Documents
 - Micron Product Catalog: [MT29F2G01ABAGD](https://www.micron.com/products/nand-flash/serial-nand/part-catalog/mt29f2g01abagdwb-it)
   - See link for Datasheet and Technical Note TN-29-17: NAND Flash Design and Use Considerations
-- Technical Note TN-29-19: NAND Flash 101 from Micron
+- Technical Note [TN-29-19: NAND Flash 101](https://media-www.micron.com/-/media/client/global/documents/products/technical-note/nand-flash/tn2919_nand_101.pdf?rev=3774f4d24cec419382e02941b460e286)
 
 ### Similar Drivers
 - SPI Drivers for M68A NAND Flash from Micron [Download: v1, 2011](https://media-www.micron.com/-/media/client/global/documents/products/nand-flash-software/mt29f_1gb-32gb_nand_driver.zip?rev=d418de6415a44bc98a55d30068b30494)
