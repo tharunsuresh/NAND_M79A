@@ -25,39 +25,8 @@
 
 
 /******************************************************************************
- *                              Initialization
+ *                              Reset
  *****************************************************************************/
-
-/**
-    @brief Initializes the NAND. Steps: Reset device and check for correct device IDs.
-    @note This function must be called first when powered on.
-
-    @return NAND_ReturnType
-    @retval Ret_ResetFailed
-    @retval Ret_WrongID
-    @retval Ret_Success
- */
-NAND_ReturnType NAND_Init(SPI_HandleTypeDef *hspi) {
-
-    NAND_ID dev_ID;
-
-    /* Reset NAND flash during initialization
-    * May not be necessary though (page 50) */
-    NAND_Wait(T_POR);  // wait for T_POR = 1.25ms after power on
-
-    // reset and wait until status register indicates no operations in progress
-    if (NAND_Reset(hspi) != Ret_Success) {
-        return Ret_ResetFailed;
-    } else {
-        /* check if device ID is same as expected */
-        NAND_Read_ID(hspi, &dev_ID);
-        if (dev_ID.manufacturer_ID != NAND_ID_MANUFACTURER || dev_ID.device_ID != NAND_ID_DEVICE) {
-            return Ret_WrongID;
-        } else {
-            return Ret_Success;
-        }
-    }
-}
 
 /**
     @brief Sends command to reset the NAND Flash chip.

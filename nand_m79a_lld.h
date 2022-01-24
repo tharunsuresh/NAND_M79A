@@ -45,6 +45,7 @@ typedef enum {
     // Ret_OperationTimeOut,
     Ret_ReadFailed,
     Ret_ProgramFailed,
+	Ret_EraseFailed,
     // Ret_SectorProtected,
     // Ret_SectorUnprotected,
     // Ret_SectorProtectFailed,
@@ -247,7 +248,7 @@ NAND_ReturnType __wait_until_ready(SPI_HandleTypeDef *hspi);
  *                            List of APIs
  *****************************************************************************/
 
-NAND_ReturnType NAND_Init(SPI_HandleTypeDef *hspi);
+/* reset operations */
 NAND_ReturnType NAND_Reset(SPI_HandleTypeDef *hspi);
 
 /* identification operations */
