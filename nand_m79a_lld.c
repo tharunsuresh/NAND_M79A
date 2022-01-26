@@ -29,6 +29,31 @@
  *****************************************************************************/
 
 /**
+    @brief Sends command to reset the NAND Flash chip.
+    @note Transaction length: 1 byte; Returns success when Flash is ready for further instructions.
+
+    @return NAND_ReturnType
+    @retval Ret_ResetFailed
+    @retval Ret_NANDBusy
+    @retval Ret_Success
+*/
+NAND_ReturnType NAND_Reset(SPI_HandleTypeDef *hspi) {
+
+    uint8_t command = SPI_NAND_RESET;
+    SPI_Params transmit = { .buffer = &command, .length = 1 };
+
+    NAND_SPI_ReturnType SPI_Status = NAND_SPI_Send(hspi, &transmit);
+    NAND_Wait(T_POR);	// wait for T_POR = 1.25 ms after reset
+
+    if (SPI_Status != SPI_OK) {
+        return Ret_ResetFailed;
+    } else {
+        // wait until OIP bit resets again (Flash is ready for further instructions)
+        return NAND_Wait_Until_Ready(hspi);
+    }
+}
+
+/**
     @brief Waits until device is ready for further instructions
     @note Waits until OIP bit in the Status Register resets again, indicating
     that the NAND Flash is ready for further instructions. If OIP = 1,
@@ -65,31 +90,6 @@ NAND_ReturnType NAND_Wait_Until_Ready(SPI_HandleTypeDef *hspi) {
         }
     }
     return Ret_Success;
-}
-
-/**
-    @brief Sends command to reset the NAND Flash chip.
-    @note Transaction length: 1 byte; Returns success when Flash is ready for further instructions.
-
-    @return NAND_ReturnType
-    @retval Ret_ResetFailed
-    @retval Ret_NANDBusy
-    @retval Ret_Success
-*/
-NAND_ReturnType NAND_Reset(SPI_HandleTypeDef *hspi) {
-
-    uint8_t command = SPI_NAND_RESET;
-    SPI_Params transmit = { .buffer = &command, .length = 1 };
-
-    NAND_SPI_ReturnType SPI_Status = NAND_SPI_Send(hspi, &transmit);
-    NAND_Wait(T_POR);	// wait for T_POR = 1.25 ms after reset
-
-    if (SPI_Status != SPI_OK) {
-        return Ret_ResetFailed;
-    } else {
-        // wait until OIP bit resets again (Flash is ready for further instructions)
-        return NAND_Wait_Until_Ready(hspi);
-    }
 }
 
 /******************************************************************************
@@ -173,6 +173,38 @@ NAND_ReturnType NAND_Get_Features(SPI_HandleTypeDef *hspi, RegisterAddr reg_addr
         return Ret_Failed;
     }
 }
+
+/**
+    @brief Write to one of three registers. Can not write to the status register.
+    @note 
+        The register address must be one of: 
+            SPI_NAND_BLKLOCK_REG_ADDR = 0xA0,
+            SPI_NAND_CFG_REG_ADDR     = 0xB0,  
+            SPI_NAND_DIE_SEL_REG_ADDR = 0xD0
+
+        Transaction length: 3 bytes (2 to transmit, 1 to receive)
+
+    @return NAND_ReturnType
+    @retval Ret_Success
+    @retval Ret_Failed
+    @retval Ret_RegAddressInvalid
+*/
+NAND_ReturnType NAND_Set_Features(SPI_HandleTypeDef *hspi, RegisterAddr reg_addr, uint8_t reg) {
+    if (reg_addr == SPI_NAND_STATUS_REG_ADDR) {
+        return Ret_RegAddressInvalid;
+    }
+    uint8_t command[] = {SPI_NAND_SET_FEATURES, reg_addr, reg};
+    SPI_Params tx = { .buffer = command, .length = 3 };
+
+    NAND_SPI_ReturnType status = NAND_SPI_Send(hspi, &tx);
+
+    if (status == SPI_OK) {
+        return Ret_Success;
+    } else {
+        return Ret_Failed;
+    }
+}
+
 
 /******************************************************************************
  *                              Read Operations

@@ -32,7 +32,7 @@ typedef enum {
     Ret_WrongID,
     Ret_NANDBusy,
     // Ret_AddressInvalid,
-    // Ret_RegAddressInvalid,
+    Ret_RegAddressInvalid,
     // Ret_MemoryOverflow,
     // Ret_BlockEraseFailed,
     // Ret_PageNrInvalid,
@@ -262,8 +262,8 @@ NAND_SPI_ReturnType __write_disable(SPI_HandleTypeDef *hspi);
  *****************************************************************************/
 
 /* status operations */
-NAND_ReturnType NAND_Wait_Until_Ready(SPI_HandleTypeDef *hspi);
 NAND_ReturnType NAND_Reset(SPI_HandleTypeDef *hspi);
+NAND_ReturnType NAND_Wait_Until_Ready(SPI_HandleTypeDef *hspi);
 
 /* identification operations */
 NAND_ReturnType NAND_Read_ID(SPI_HandleTypeDef *hspi, NAND_ID *nand_ID);
@@ -272,7 +272,7 @@ NAND_ReturnType NAND_Read_ID(SPI_HandleTypeDef *hspi, NAND_ID *nand_ID);
 /* feature operations */
 NAND_ReturnType NAND_Check_Busy(SPI_HandleTypeDef *hspi);
 NAND_ReturnType NAND_Get_Features(SPI_HandleTypeDef *hspi, RegisterAddr reg_addr, uint8_t *reg);
-NAND_ReturnType NAND_Set_Features(SPI_HandleTypeDef *hspi, RegisterAddr reg_addr, uint8_t *reg);
+NAND_ReturnType NAND_Set_Features(SPI_HandleTypeDef *hspi, RegisterAddr reg_addr, uint8_t reg);
 
 /* read operations */
 NAND_ReturnType NAND_Page_Read(SPI_HandleTypeDef *hspi, PhysicalAddrs *addr, uint8_t *buffer, uint16_t length);
