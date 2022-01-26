@@ -35,7 +35,7 @@
 #define NAND_SCK_PORT   GPIOB
 #define NAND_NCS_PORT   GPIOB
 
-#define DUMMY_BYTE	       0x00
+#define DUMMY_BYTE         0x00
 #define NAND_SPI_TIMEOUT   100
 
 /* using custom return type to keep higher layers as platform-agnostic as possible */

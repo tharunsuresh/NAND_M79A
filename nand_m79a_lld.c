@@ -25,8 +25,47 @@
 
 
 /******************************************************************************
- *                              Reset
+ *                              Status Operations
  *****************************************************************************/
+
+/**
+    @brief Waits until device is ready for further instructions
+    @note Waits until OIP bit in the Status Register resets again, indicating
+    that the NAND Flash is ready for further instructions. If OIP = 1,
+    operation is ongoing, i.e. device is busy.
+
+    Assumption: the device keeps outputting the status register contents
+    until another command is issued. This is shown in pages 17 and 31.
+    TODO: confirm with an oscilloscope.
+
+    @return NAND_ReturnType
+    @retval Ret_Success
+*/
+NAND_ReturnType NAND_Wait_Until_Ready(SPI_HandleTypeDef *hspi) {
+    uint8_t timeout_counter = 0;
+    uint8_t max_attempts = 2;
+
+    /* SPI Transaction set up */
+    uint8_t data_rx;
+    SPI_Params rx = { .buffer = &data_rx, .length = 1 };
+
+    /* check once if any operations in progress */
+    NAND_ReturnType status = NAND_Check_Busy(hspi);
+
+    /* if busy, keep polling for until reaching max_attempts. if still busy, return busy */
+    if (status == Ret_NANDBusy) {
+        while (CHECK_OIP(data_rx)) {
+            if (timeout_counter < max_attempts) {
+                NAND_SPI_Receive(hspi, &rx);
+                NAND_Wait(1);
+                timeout_counter += 1;
+            } else {
+                return Ret_NANDBusy;
+            }
+        }
+    }
+    return Ret_Success;
+}
 
 /**
     @brief Sends command to reset the NAND Flash chip.
@@ -49,10 +88,9 @@ NAND_ReturnType NAND_Reset(SPI_HandleTypeDef *hspi) {
         return Ret_ResetFailed;
     } else {
         // wait until OIP bit resets again (Flash is ready for further instructions)
-        return __wait_until_ready(hspi);
+        return NAND_Wait_Until_Ready(hspi);
     }
 }
-
 
 /******************************************************************************
  *                      Identification Operations
@@ -65,10 +103,8 @@ NAND_ReturnType NAND_Reset(SPI_HandleTypeDef *hspi) {
     @return NAND_ReturnType
     @retval Ret_ResetFailed
     @retval Ret_Success
-
-    */
-
-    NAND_ReturnType NAND_Read_ID(SPI_HandleTypeDef *hspi, NAND_ID *nand_ID) {
+*/
+NAND_ReturnType NAND_Read_ID(SPI_HandleTypeDef *hspi, NAND_ID *nand_ID) {
 
     uint8_t data_tx[] = {SPI_NAND_READ_ID, 0}; // second byte is dummy byte
     uint8_t data_rx[2]; // data buffer for received data
@@ -89,48 +125,58 @@ NAND_ReturnType NAND_Reset(SPI_HandleTypeDef *hspi) {
  *****************************************************************************/
 
 /**
-    @brief Sends command to read the entire status register
-    @note Transaction length: 3 bytes (2 to transmit, 1 to receive)
-
-    @return uint8_t
-    @retval Status register contents
-*/
-uint8_t NAND_Read_Status_Reg(SPI_HandleTypeDef *hspi) {
-
-    uint8_t command[] = {SPI_NAND_GET_FEATURES, SPI_NAND_STATUS_REG_ADDR};
-    uint8_t data_rx;
-
-    SPI_Params tx = { .buffer = command,  .length = 2 };
-    SPI_Params rx = { .buffer = &data_rx, .length = 1 };
-
-    NAND_SPI_SendReceive(hspi, &tx, &rx);
-
-    return data_rx;
-}
-
-
-/**
-    @brief Sends command to read status register bit 1 (OIP).
-    @note Transaction length: 3 bytes (2 to transmit, 1 to receive)
+    @brief Returns Ret_NANDBusy if there are any operations in progress.
+    @note 
+        Sends command to read status register bit 1 (OIP).
+        Transaction length: 3 bytes (2 to transmit, 1 to receive)
 
     @return NAND_ReturnType
     @retval Ret_Success
     @retval Ret_NANDBusy
 */
-NAND_ReturnType NAND_Check_OIP(SPI_HandleTypeDef *hspi) {
-    uint8_t status_reg = NAND_Read_Status_Reg(hspi);
-    if (CHECK_OIP(status_reg)) {
+NAND_ReturnType NAND_Check_Busy(SPI_HandleTypeDef *hspi) {
+    uint8_t status_reg;
+    
+    NAND_Get_Features(hspi, SPI_NAND_STATUS_REG_ADDR, &status_reg);
+    if (CHECK_OIP(status_reg)) { // if OIP bit is set
         return Ret_NANDBusy;
     } else {
         return Ret_Success;
     }
 }
 
+/**
+    @brief Read one of four registers. 
+    @note 
+        The register address must be one of: 
+            SPI_NAND_BLKLOCK_REG_ADDR = 0xA0,
+            SPI_NAND_CFG_REG_ADDR     = 0xB0,  
+            SPI_NAND_STATUS_REG_ADDR  = 0xC0,
+            SPI_NAND_DIE_SEL_REG_ADDR = 0xD0
+
+        Transaction length: 3 bytes (2 to transmit, 1 to receive)
+
+    @return NAND_ReturnType
+    @retval Ret_Success
+    @retval Ret_Failed
+*/
+NAND_ReturnType NAND_Get_Features(SPI_HandleTypeDef *hspi, RegisterAddr reg_addr, uint8_t *reg) {
+    uint8_t command[] = {SPI_NAND_GET_FEATURES, reg_addr};
+    SPI_Params tx = { .buffer = command, .length = 2 };
+    SPI_Params rx = { .buffer = reg,     .length = 1 };
+
+    NAND_SPI_ReturnType status = NAND_SPI_SendReceive(hspi, &tx, &rx);
+
+    if (status == SPI_OK) {
+        return Ret_Success;
+    } else {
+        return Ret_Failed;
+    }
+}
 
 /******************************************************************************
  *                              Read Operations
  *****************************************************************************/
-
 
 /**
     @brief Read bytes stored in a page.
@@ -164,9 +210,7 @@ NAND_ReturnType NAND_Page_Read(SPI_HandleTypeDef *hspi, PhysicalAddrs *addr, uin
     }
 
     /* Command 2: Wait for data to be loaded into cache */
-    status = __wait_until_ready(hspi);
-
-    if (status != Ret_Success) {
+    if (NAND_Wait_Until_Ready(hspi) != Ret_Success) {
         return Ret_ReadFailed;
     }
 
@@ -245,10 +289,8 @@ NAND_ReturnType NAND_Page_Program(SPI_HandleTypeDef *hspi, PhysicalAddrs *addr, 
         return Ret_ProgramFailed;
     }
 
-    /* Make sure the OIP bit clears and then write disable. */
-    status = __wait_until_ready(hspi);
-
-    if (status != Ret_Success) {
+    /* Make sure the device is ready and then disable writes. */
+    if (NAND_Wait_Until_Ready(hspi) != Ret_Success) {
         return Ret_ProgramFailed;
     }
 
@@ -286,8 +328,6 @@ NAND_ReturnType NAND_Page_Program(SPI_HandleTypeDef *hspi, PhysicalAddrs *addr, 
 */
 NAND_ReturnType NAND_Block_Erase(SPI_HandleTypeDef *hspi, PhysicalAddrs *addr) {
 
-    NAND_SPI_ReturnType status;
-
     /* Command 1: WRITE ENABLE */
     __write_enable(hspi);
 
@@ -296,16 +336,12 @@ NAND_ReturnType NAND_Block_Erase(SPI_HandleTypeDef *hspi, PhysicalAddrs *addr) {
     uint8_t command[4] = {SPI_NAND_BLOCK_ERASE, (block >> 16), (block >> 8), (block & 0xFF)};
 
     SPI_Params tx_cmd = {.buffer = command, .length = 4};
-
-    status = NAND_SPI_Send(hspi, &tx_cmd);
-
-    if (status != SPI_OK) {
+    if (NAND_SPI_Send(hspi, &tx_cmd) != SPI_OK) {
         return Ret_EraseFailed;
     }
 
-    status = __wait_until_ready(hspi);
-
-    if (status != Ret_Success) {
+    /* Command 3: wait for device to be ready again */
+    if (NAND_Wait_Until_Ready(hspi) != Ret_Success) {
         return Ret_EraseFailed;
     }
 
@@ -346,7 +382,6 @@ NAND_ReturnType NAND_Block_Erase(SPI_HandleTypeDef *hspi, PhysicalAddrs *addr) {
  *                              Internal Functions
  *****************************************************************************/
 
-
 NAND_SPI_ReturnType __write_enable(SPI_HandleTypeDef *hspi) {
     uint8_t command = SPI_NAND_WRITE_ENABLE;
     SPI_Params transmit = { .buffer = &command, .length = 1 };
@@ -357,43 +392,4 @@ NAND_SPI_ReturnType __write_disable(SPI_HandleTypeDef *hspi) {
     uint8_t command = SPI_NAND_WRITE_DISABLE;
     SPI_Params transmit = { .buffer = &command, .length = 1 };
     return NAND_SPI_Send(hspi, &transmit);
-}
-
-/**
-    @brief
-    @note Waits until OIP bit in the Status Register resets again, indicating
-    that the NAND Flash is ready for further instructions. If OIP = 1,
-    operation is ongoing, i.e. device is busy.
-
-    Assumption: the device keeps outputting the status register contents
-    until another command is issued. This is shown in pages 17 and 31.
-    TODO: confirm with an oscilloscope.
-
-    @return NAND_ReturnType
-    @retval Ret_Success
-*/
-NAND_ReturnType __wait_until_ready(SPI_HandleTypeDef *hspi) {
-    uint8_t timeout_counter = 0;
-    uint8_t max_attempts = 2;
-
-    /* SPI Transaction set up */
-    uint8_t data_rx;
-    SPI_Params rx = { .buffer = &data_rx, .length = 1 };
-
-    /* check once if any operations in progress */
-    NAND_ReturnType status = NAND_Check_OIP(hspi);
-
-    /* if busy, keep polling for until reaching max_attempts. if still busy, return busy */
-    if (status == Ret_NANDBusy) {
-        while (CHECK_OIP(data_rx)) {
-            if (timeout_counter < max_attempts) {
-                NAND_SPI_Receive(hspi, &rx);
-                NAND_Wait(1);
-                timeout_counter += 1;
-            } else {
-                return Ret_NANDBusy;
-            }
-        }
-    }
-    return Ret_Success;
 }

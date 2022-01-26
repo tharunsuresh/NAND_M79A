@@ -24,11 +24,10 @@
 
 #include "nand_spi.h"
 
-/* Type Definitions */
-
 /* Functions Return Codes */
 typedef enum {
     Ret_Success,
+    Ret_Failed,
     Ret_ResetFailed,
     Ret_WrongID,
     Ret_NANDBusy,
@@ -167,7 +166,6 @@ typedef enum {
     *  
     * See datasheet page 38 for explanation on BPx bits
     */
-
     typedef enum {
         SPI_NAND_BRWD   = (1 << 7), /* block register write disable */
         SPI_NAND_BP     = (1 << 6) | (1 << 5) | (1 << 4) | (1 << 3), 
@@ -175,9 +173,22 @@ typedef enum {
         SPI_NAND_WP_D   = (1 << 1), /* Write protect#/hold# disable */
     } BlockLockRegBits;
 
-    /* TODO: Configuration Register Definitions
+    /* Configuration Register Definitions (see Datasheet page 37)
     *
+    *   CR7 - CFG2
+    *   CR6 - CFG1
+    *   CR5 - LOT_EN
+    *   CR4 - ECC_EN
+    *   CR3 - reserved
+    *   CR2 - reserved
+    *   CR1 - CFG0
+    *   CR0 - reserved
     */
+    typedef enum {
+        SPI_NAND_CFG    = (1 << 7) | (1 << 6) | (1 << 1), 
+        SPI_NAND_LOT_EN = (1 << 5),
+        SPI_NAND_ECC_EN = (1 << 4),
+    } ConfigRegBits;
 
     /* Status Register Definitions (see Datasheet page 43)
     *
@@ -214,9 +225,13 @@ typedef enum {
         SPI_NAND_OIP   = (1 << 0), /* operation in progress */
     } StatusRegBits;
 
-    /* TODO: Register #4 Definitions
-    *
+    /* Die Select Register Definitions (see Datasheet page 37)
+    *   DR6     - DS0
+    *   others  - reserved
     */
+    typedef enum {
+        SPI_NAND_DS0    = (1 << 6), 
+    } DieSelRegBits;
 
     /* Page read mode (see Datasheet page 16) */
     typedef enum {
@@ -242,13 +257,12 @@ typedef enum {
 NAND_SPI_ReturnType __write_enable(SPI_HandleTypeDef *hspi);
 NAND_SPI_ReturnType __write_disable(SPI_HandleTypeDef *hspi);
 
-NAND_ReturnType __wait_until_ready(SPI_HandleTypeDef *hspi);
-
 /******************************************************************************
  *                            List of APIs
  *****************************************************************************/
 
-/* reset operations */
+/* status operations */
+NAND_ReturnType NAND_Wait_Until_Ready(SPI_HandleTypeDef *hspi);
 NAND_ReturnType NAND_Reset(SPI_HandleTypeDef *hspi);
 
 /* identification operations */
@@ -256,10 +270,9 @@ NAND_ReturnType NAND_Read_ID(SPI_HandleTypeDef *hspi, NAND_ID *nand_ID);
 // NAND_ReturnType NAND_Read_Param_Page(SPI_HandleTypeDef *hspi, param_page_t *ppage);
 
 /* feature operations */
-uint8_t NAND_Read_Status_Reg(SPI_HandleTypeDef *hspi);
-NAND_ReturnType NAND_Check_OIP(SPI_HandleTypeDef *hspi);
-// NAND_ReturnType NAND_Get_Feature(SPI_HandleTypeDef *hspi, uint8_t feature_address, uint8_t subfeature);
-// NAND_ReturnType NAND_Set_Feature(SPI_HandleTypeDef *hspi, uint8_t feature_address, uint8_t subfeature);
+NAND_ReturnType NAND_Check_Busy(SPI_HandleTypeDef *hspi);
+NAND_ReturnType NAND_Get_Features(SPI_HandleTypeDef *hspi, RegisterAddr reg_addr, uint8_t *reg);
+NAND_ReturnType NAND_Set_Features(SPI_HandleTypeDef *hspi, RegisterAddr reg_addr, uint8_t *reg);
 
 /* read operations */
 NAND_ReturnType NAND_Page_Read(SPI_HandleTypeDef *hspi, PhysicalAddrs *addr, uint8_t *buffer, uint16_t length);
