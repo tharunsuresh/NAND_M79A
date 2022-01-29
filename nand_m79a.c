@@ -41,14 +41,12 @@
     @retval Ret_Success
  */
 NAND_ReturnType NAND_Init(SPI_HandleTypeDef *hspi) {
-
     NAND_ID dev_ID;
 
-    /* Reset NAND flash during initialization
-    * May not be necessary though (page 50) */
-    NAND_Wait(T_POR);  // wait for T_POR = 1.25ms after power on
+    /* Wait for T_POR = 1.25ms after power on */
+    NAND_Wait(T_POR);
 
-    // reset and wait until status register indicates no operations in progress
+    /* Reset NAND flash during initialization. May not be necessary though (page 50) */
     if (NAND_Reset(hspi) != Ret_Success) {
         return Ret_ResetFailed;
     } else {
@@ -77,7 +75,21 @@ NAND_ReturnType NAND_Init(SPI_HandleTypeDef *hspi) {
 // NAND_ReturnType func(SPI_HandleTypeDef *hspi) {
 // }
 
+NAND_ReturnType NAND_Read(SPI_HandleTypeDef *hspi, NAND_Addr *address, uint16_t length) {
+    PhysicalAddrs addr_i;
+    uint8_t data[PAGE_SIZE];
 
+    // TODO: can't just be any address. start address has to be page start. and max len must be page end.
+    // handle writing between pages.
+    
+    /* Convert logical address to physical internal addresses to send to NAND */
+    __map_logical_addr(address, &addr_i);
+
+    NAND_Page_Read(hspi, &addr_i, data, length);
+
+    return Ret_Success;
+
+}
 
 /******************************************************************************
  *                              Internal Functions

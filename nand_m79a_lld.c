@@ -225,7 +225,7 @@ NAND_ReturnType NAND_Page_Read(SPI_HandleTypeDef *hspi, PhysicalAddrs *addr, uin
     
     NAND_SPI_ReturnType status;
 
-    if (length > PAGE_DATA_SIZE) {
+    if (length > PAGE_SIZE) {
         return Ret_ReadFailed;
     }
 

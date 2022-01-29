@@ -114,7 +114,7 @@ typedef enum {
     #define ADDRESS_2_COL(Address)      ((uint32_t) (Address & 0x07FF)) // take last 11 bits of address
 
     /* bit macros */
-    #define CHECK_OIP(status_reg)       ((status_reg & SPI_NAND_OIP) == SPI_NAND_OIP) // returns 1 if OIP bit is 1 and device is busy
+    #define CHECK_OIP(status_reg)       (status_reg & SPI_NAND_OIP) // returns 1 if OIP bit is 1 and device is busy
 
     /* Command Code Definitions (see Datasheet page 13) */
     typedef enum {
